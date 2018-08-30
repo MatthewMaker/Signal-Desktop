@@ -1,11 +1,21 @@
 const crypto = require('crypto');
 const path = require('path');
 
+const pify = require('pify');
+const glob = require('glob');
 const fse = require('fs-extra');
 const toArrayBuffer = require('to-arraybuffer');
-const { isArrayBuffer, isString } = require('lodash');
+const { map, isArrayBuffer, isString } = require('lodash');
 
 const PATH = 'attachments.noindex';
+
+exports.getAllAttachments = async userDataPath => {
+  const dir = exports.getPath(userDataPath);
+  const pattern = path.join(dir, '**', '*');
+
+  const files = await pify(glob)(pattern, { nodir: true });
+  return map(files, file => path.relative(dir, file));
+};
 
 //      getPath :: AbsolutePath -> AbsolutePath
 exports.getPath = userDataPath => {
@@ -120,6 +130,18 @@ exports.createDeleter = root => {
   };
 };
 
+exports.deleteAll = async ({ userDataPath, attachments }) => {
+  const deleteFromDisk = exports.createDeleter(exports.getPath(userDataPath));
+
+  for (let index = 0, max = attachments.length; index < max; index += 1) {
+    const file = attachments[index];
+    // eslint-disable-next-line no-await-in-loop
+    await deleteFromDisk(file);
+  }
+
+  console.log(`deleteAll: deleted ${attachments.length} files`);
+};
+
 //      createName :: Unit -> IO String
 exports.createName = () => {
   const buffer = crypto.randomBytes(32);
@@ -136,7 +158,7 @@ exports.getRelativePath = name => {
   return path.join(prefix, name);
 };
 
-//      createAbsolutePathGetter :: RoothPath -> RelativePath -> AbsolutePath
+//      createAbsolutePathGetter :: RootPath -> RelativePath -> AbsolutePath
 exports.createAbsolutePathGetter = rootPath => relativePath => {
   const absolutePath = path.join(rootPath, relativePath);
   const normalized = path.normalize(absolutePath);

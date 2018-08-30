@@ -14,6 +14,111 @@
 (async function() {
   'use strict';
 
+  // Globally disable drag and drop
+  document.body.addEventListener(
+    'dragover',
+    e => {
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    false
+  );
+  document.body.addEventListener(
+    'drop',
+    e => {
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    false
+  );
+
+  // Load these images now to ensure that they don't flicker on first use
+  const images = [];
+  function preload(list) {
+    for (let index = 0, max = list.length; index < max; index += 1) {
+      const image = new Image();
+      image.src = `./images/${list[index]}`;
+      images.push(image);
+    }
+  }
+  preload([
+    'alert-outline.svg',
+    'android.svg',
+    'apple.svg',
+    'appstore.svg',
+    'audio.svg',
+    'back.svg',
+    'chat-bubble-outline.svg',
+    'chat-bubble.svg',
+    'check-circle-outline.svg',
+    'check.svg',
+    'clock.svg',
+    'close-circle.svg',
+    'delete.svg',
+    'dots-horizontal.svg',
+    'double-check.svg',
+    'down.svg',
+    'download.svg',
+    'ellipsis.svg',
+    'error.svg',
+    'error_red.svg',
+    'file-gradient.svg',
+    'file.svg',
+    'folder-outline.svg',
+    'forward.svg',
+    'gear.svg',
+    'group_default.png',
+    'hourglass_empty.svg',
+    'hourglass_full.svg',
+    'icon_1024.png',
+    'icon_128.png',
+    'icon_16.png',
+    'icon_250.png',
+    'icon_256.png',
+    'icon_32.png',
+    'icon_48.png',
+    'image.svg',
+    'import.svg',
+    'lead-pencil.svg',
+    'menu.svg',
+    'microphone.svg',
+    'movie.svg',
+    'open_link.svg',
+    'paperclip.svg',
+    'play.svg',
+    'playstore.png',
+    'read.svg',
+    'reply.svg',
+    'save.svg',
+    'search.svg',
+    'sending.svg',
+    'shield.svg',
+    'signal-laptop.png',
+    'signal-phone.png',
+    'smile.svg',
+    'sync.svg',
+    'timer-00.svg',
+    'timer-05.svg',
+    'timer-10.svg',
+    'timer-15.svg',
+    'timer-20.svg',
+    'timer-25.svg',
+    'timer-30.svg',
+    'timer-35.svg',
+    'timer-40.svg',
+    'timer-45.svg',
+    'timer-50.svg',
+    'timer-55.svg',
+    'timer-60.svg',
+    'timer.svg',
+    'verified-check.svg',
+    'video.svg',
+    'voice.svg',
+    'warning.svg',
+    'x.svg',
+    'x_white.svg',
+  ]);
+
   // We add this to window here because the default Node context is erased at the end
   //   of preload.js processing
   window.setImmediate = window.nodeSetImmediate;
@@ -26,12 +131,16 @@
 
   // Implicitly used in `indexeddb-backbonejs-adapter`:
   // https://github.com/signalapp/Signal-Desktop/blob/4033a9f8137e62ed286170ed5d4941982b1d3a64/components/indexeddb-backbonejs-adapter/backbone-indexeddb.js#L569
-  window.onInvalidStateError = e => console.log(e);
+  window.onInvalidStateError = error =>
+    window.log.error(error && error.stack ? error.stack : error);
 
-  console.log('background page reloaded');
-  console.log('environment:', window.getEnvironment());
+  window.log.info('background page reloaded');
+  window.log.info('environment:', window.getEnvironment());
 
+  let idleDetector;
   let initialLoadComplete = false;
+  let newVersion = false;
+
   window.owsDesktopApp = {};
   window.document.title = window.getTitle();
 
@@ -58,7 +167,7 @@
       accountManager = new textsecure.AccountManager(USERNAME, PASSWORD);
       accountManager.addEventListener('registration', () => {
         Whisper.Registration.markDone();
-        console.log('dispatching registration event');
+        window.log.info('dispatching registration event');
         Whisper.events.trigger('registration_done');
       });
     }
@@ -66,53 +175,30 @@
   };
 
   const cancelInitializationMessage = Views.Initialization.setMessage();
-  console.log('Start IndexedDB migrations');
+  window.log.info('Start IndexedDB migrations');
 
-  console.log('Run migrations on database with attachment data');
-  await Migrations0DatabaseWithAttachmentData.run({ Backbone });
+  window.log.info('Run migrations on database with attachment data');
+  await Migrations0DatabaseWithAttachmentData.run({
+    Backbone,
+    logger: window.log,
+  });
 
-  console.log('Storage fetch');
+  window.log.info('Storage fetch');
   storage.fetch();
 
-  const idleDetector = new IdleDetector();
-  let isMigrationWithIndexComplete = false;
-  let isMigrationWithoutIndexComplete = false;
-  idleDetector.on('idle', async () => {
-    console.log('Idle processing started');
-    const NUM_MESSAGES_PER_BATCH = 1;
-
-    if (!isMigrationWithIndexComplete) {
-      const batchWithIndex = await MessageDataMigrator.processNext({
-        BackboneMessage: Whisper.Message,
-        BackboneMessageCollection: Whisper.MessageCollection,
-        numMessagesPerBatch: NUM_MESSAGES_PER_BATCH,
-        upgradeMessageSchema,
-      });
-      console.log('Upgrade message schema (with index):', batchWithIndex);
-      isMigrationWithIndexComplete = batchWithIndex.done;
+  function mapOldThemeToNew(theme) {
+    switch (theme) {
+      case 'dark':
+      case 'light':
+        return theme;
+      case 'android-dark':
+        return 'dark';
+      case 'android':
+      case 'ios':
+      default:
+        return 'light';
     }
-
-    if (!isMigrationWithoutIndexComplete) {
-      const database = Migrations0DatabaseWithAttachmentData.getDatabase();
-      const batchWithoutIndex = await MessageDataMigrator.processNextBatchWithoutIndex(
-        {
-          databaseName: database.name,
-          minDatabaseVersion: database.version,
-          numMessagesPerBatch: NUM_MESSAGES_PER_BATCH,
-          upgradeMessageSchema,
-        }
-      );
-      console.log('Upgrade message schema (without index):', batchWithoutIndex);
-      isMigrationWithoutIndexComplete = batchWithoutIndex.done;
-    }
-
-    const areAllMigrationsComplete =
-      isMigrationWithIndexComplete && isMigrationWithoutIndexComplete;
-    if (areAllMigrationsComplete) {
-      console.log('All migrations are complete. Stopping idle detector.');
-      idleDetector.stop();
-    }
-  });
+  }
 
   // We need this 'first' check because we don't want to start the app up any other time
   //   than the first time. And storage.fetch() will cause onready() to fire.
@@ -127,7 +213,7 @@
     window.Events = {
       getDeviceName: () => textsecure.storage.user.getDeviceName(),
 
-      getThemeSetting: () => storage.get('theme-setting'),
+      getThemeSetting: () => storage.get('theme-setting', 'light'),
       setThemeSetting: value => {
         storage.put('theme-setting', value);
         onChangeTheme();
@@ -177,7 +263,193 @@
       },
     };
 
+    const currentVersion = window.getVersion();
+    const lastVersion = storage.get('version');
+    newVersion = !lastVersion || currentVersion !== lastVersion;
+    await storage.put('version', currentVersion);
+
+    if (newVersion) {
+      if (
+        lastVersion &&
+        window.isBeforeVersion(lastVersion, 'v1.15.0-beta.5')
+      ) {
+        await window.Signal.Logs.deleteAll();
+        window.restart();
+      }
+
+      window.log.info(
+        `New version detected: ${currentVersion}; previous: ${lastVersion}`
+      );
+    }
+
+    const MINIMUM_VERSION = 7;
+    async function upgradeMessages() {
+      const NUM_MESSAGES_PER_BATCH = 10;
+      window.log.info(
+        'upgradeMessages: Mandatory message schema upgrade started.',
+        `Target version: ${MINIMUM_VERSION}`
+      );
+
+      let isMigrationWithoutIndexComplete = false;
+      while (!isMigrationWithoutIndexComplete) {
+        const database = Migrations0DatabaseWithAttachmentData.getDatabase();
+        // eslint-disable-next-line no-await-in-loop
+        const batchWithoutIndex = await MessageDataMigrator.processNextBatchWithoutIndex(
+          {
+            databaseName: database.name,
+            minDatabaseVersion: database.version,
+            numMessagesPerBatch: NUM_MESSAGES_PER_BATCH,
+            upgradeMessageSchema,
+            maxVersion: MINIMUM_VERSION,
+            BackboneMessage: Whisper.Message,
+            saveMessage: window.Signal.Data.saveLegacyMessage,
+          }
+        );
+        window.log.info(
+          'upgradeMessages: upgrade without index',
+          batchWithoutIndex
+        );
+        isMigrationWithoutIndexComplete = batchWithoutIndex.done;
+      }
+      window.log.info('upgradeMessages: upgrade without index complete!');
+
+      let isMigrationWithIndexComplete = false;
+      while (!isMigrationWithIndexComplete) {
+        // eslint-disable-next-line no-await-in-loop
+        const batchWithIndex = await MessageDataMigrator.processNext({
+          BackboneMessage: Whisper.Message,
+          BackboneMessageCollection: Whisper.MessageCollection,
+          numMessagesPerBatch: NUM_MESSAGES_PER_BATCH,
+          upgradeMessageSchema,
+          getMessagesNeedingUpgrade:
+            window.Signal.Data.getLegacyMessagesNeedingUpgrade,
+          saveMessage: window.Signal.Data.saveLegacyMessage,
+          maxVersion: MINIMUM_VERSION,
+        });
+        window.log.info('upgradeMessages: upgrade with index', batchWithIndex);
+        isMigrationWithIndexComplete = batchWithIndex.done;
+      }
+      window.log.info('upgradeMessages: upgrade with index complete!');
+
+      window.log.info('upgradeMessages: Message schema upgrade complete');
+    }
+
+    await upgradeMessages();
+
+    const db = await Whisper.Database.open();
+    const totalMessages = await MessageDataMigrator.getNumMessages({
+      connection: db,
+    });
+
+    function showMigrationStatus(current) {
+      const status = `${current}/${totalMessages}`;
+      Views.Initialization.setMessage(
+        window.i18n('migratingToSQLCipher', [status])
+      );
+    }
+
+    if (totalMessages) {
+      window.log.info(`About to migrate ${totalMessages} messages`);
+
+      showMigrationStatus(0);
+      await window.Signal.migrateToSQL({
+        db,
+        clearStores: Whisper.Database.clearStores,
+        handleDOMException: Whisper.Database.handleDOMException,
+        arrayBufferToString:
+          textsecure.MessageReceiver.arrayBufferToStringBase64,
+        countCallback: count => {
+          window.log.info(`Migration: ${count} messages complete`);
+          showMigrationStatus(count);
+        },
+      });
+    }
+
+    Views.Initialization.setMessage(window.i18n('optimizingApplication'));
+
+    window.log.info('Cleanup: starting...');
+    const messagesForCleanup = await window.Signal.Data.getOutgoingWithoutExpiresAt(
+      {
+        MessageCollection: Whisper.MessageCollection,
+      }
+    );
+    window.log.info(
+      `Cleanup: Found ${messagesForCleanup.length} messages for cleanup`
+    );
+    await Promise.all(
+      messagesForCleanup.map(async message => {
+        const delivered = message.get('delivered');
+        const sentAt = message.get('sent_at');
+        const expirationStartTimestamp = message.get(
+          'expirationStartTimestamp'
+        );
+
+        if (message.hasErrors()) {
+          return;
+        }
+
+        if (delivered) {
+          window.log.info(
+            `Cleanup: Starting timer for delivered message ${sentAt}`
+          );
+          message.set(
+            'expirationStartTimestamp',
+            expirationStartTimestamp || sentAt
+          );
+          await message.setToExpire();
+          return;
+        }
+
+        window.log.info(`Cleanup: Deleting unsent message ${sentAt}`);
+        await window.Signal.Data.removeMessage(message.id, {
+          Message: Whisper.Message,
+        });
+      })
+    );
+    window.log.info('Cleanup: complete');
+
+    Views.Initialization.setMessage(window.i18n('loading'));
+
+    // Note: We are not invoking the second set of IndexedDB migrations because it is
+    //   likely that any future migrations will simply extracting things from IndexedDB.
+
+    idleDetector = new IdleDetector();
+    let isMigrationWithIndexComplete = false;
+    window.log.info(
+      `Starting background data migration. Target version: ${
+        Message.CURRENT_SCHEMA_VERSION
+      }`
+    );
+    idleDetector.on('idle', async () => {
+      const NUM_MESSAGES_PER_BATCH = 1;
+
+      if (!isMigrationWithIndexComplete) {
+        const batchWithIndex = await MessageDataMigrator.processNext({
+          BackboneMessage: Whisper.Message,
+          BackboneMessageCollection: Whisper.MessageCollection,
+          numMessagesPerBatch: NUM_MESSAGES_PER_BATCH,
+          upgradeMessageSchema,
+          getMessagesNeedingUpgrade:
+            window.Signal.Data.getMessagesNeedingUpgrade,
+          saveMessage: window.Signal.Data.saveMessage,
+        });
+        window.log.info('Upgrade message schema (with index):', batchWithIndex);
+        isMigrationWithIndexComplete = batchWithIndex.done;
+      }
+
+      if (isMigrationWithIndexComplete) {
+        window.log.info(
+          'Background migration complete. Stopping idle detector.'
+        );
+        idleDetector.stop();
+      }
+    });
+
     const startSpellCheck = () => {
+      if (!window.enableSpellCheck || !window.disableSpellCheck) {
+        return;
+      }
+
       if (window.Events.getSpellCheck()) {
         window.enableSpellCheck();
       } else {
@@ -186,16 +458,26 @@
     };
     startSpellCheck();
 
+    const themeSetting = window.Events.getThemeSetting();
+    const newThemeSetting = mapOldThemeToNew(themeSetting);
+    window.Events.setThemeSetting(newThemeSetting);
+
     try {
       await ConversationController.load();
+    } catch (error) {
+      window.log.error(
+        'background.js: ConversationController failed to load:',
+        error && error.stack ? error.stack : error
+      );
     } finally {
       start();
     }
   });
 
   Whisper.events.on('shutdown', async () => {
-    idleDetector.stop();
-
+    if (idleDetector) {
+      idleDetector.stop();
+    }
     if (messageReceiver) {
       await messageReceiver.close();
     }
@@ -224,27 +506,11 @@
   });
 
   async function start() {
-    const currentVersion = window.getVersion();
-    const lastVersion = storage.get('version');
-    const newVersion = !lastVersion || currentVersion !== lastVersion;
-    await storage.put('version', currentVersion);
-
-    if (newVersion) {
-      if (currentVersion === '1.14.2' || currentVersion === '1.15.0-beta.2') {
-        await window.Signal.Logs.deleteAll();
-        window.restart();
-      }
-
-      console.log(
-        `New version detected: ${currentVersion}; previous: ${lastVersion}`
-      );
-    }
-
     window.dispatchEvent(new Event('storage_ready'));
 
-    console.log('listening for registration events');
+    window.log.info('listening for registration events');
     Whisper.events.on('registration_done', () => {
-      console.log('handling registration event');
+      window.log.info('handling registration event');
       Whisper.RotateSignedPreKeyListener.init(Whisper.events, newVersion);
       connect(true);
     });
@@ -259,7 +525,7 @@
     Whisper.ExpiringMessagesListener.init(Whisper.events);
 
     if (Whisper.Import.isIncomplete()) {
-      console.log('Import was interrupted, showing import error screen');
+      window.log.info('Import was interrupted, showing import error screen');
       appView.openImporter();
     } else if (Whisper.Registration.everDone()) {
       Whisper.RotateSignedPreKeyListener.init(Whisper.events, newVersion);
@@ -321,7 +587,7 @@
 
   let disconnectTimer = null;
   function onOffline() {
-    console.log('offline');
+    window.log.info('offline');
 
     window.removeEventListener('offline', onOffline);
     window.addEventListener('online', onOnline);
@@ -333,13 +599,13 @@
   }
 
   function onOnline() {
-    console.log('online');
+    window.log.info('online');
 
     window.removeEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
 
     if (disconnectTimer && isSocketOnline()) {
-      console.log('Already online. Had a blip in online/offline status.');
+      window.log.warn('Already online. Had a blip in online/offline status.');
       clearTimeout(disconnectTimer);
       disconnectTimer = null;
       return;
@@ -360,7 +626,7 @@
   }
 
   function disconnect() {
-    console.log('disconnect');
+    window.log.info('disconnect');
 
     // Clear timer, since we're only called when the timer is expired
     disconnectTimer = null;
@@ -372,14 +638,14 @@
 
   let connectCount = 0;
   async function connect(firstRun) {
-    console.log('connect');
+    window.log.info('connect');
 
     // Bootstrap our online/offline detection, only the first time we connect
     if (connectCount === 0 && navigator.onLine) {
       window.addEventListener('offline', onOffline);
     }
     if (connectCount === 0 && !navigator.onLine) {
-      console.log(
+      window.log.warn(
         'Starting up offline; will connect when we have network access'
       );
       window.addEventListener('online', onOnline);
@@ -455,7 +721,7 @@
       sendRequestConfigurationSyncMessage,
       storage,
     });
-    console.log('Sync read receipt configuration status:', status);
+    window.log.info('Sync read receipt configuration status:', status);
 
     if (firstRun === true && deviceId !== '1') {
       const hasThemeSetting = Boolean(storage.get('theme-setting'));
@@ -469,32 +735,28 @@
       );
       Whisper.events.trigger('contactsync:begin');
       syncRequest.addEventListener('success', () => {
-        console.log('sync successful');
+        window.log.info('sync successful');
         storage.put('synced_at', Date.now());
         Whisper.events.trigger('contactsync');
       });
       syncRequest.addEventListener('timeout', () => {
-        console.log('sync timed out');
+        window.log.error('sync timed out');
         Whisper.events.trigger('contactsync');
       });
 
       if (Whisper.Import.isComplete()) {
-        textsecure.messaging.sendRequestConfigurationSyncMessage().catch(e => {
-          console.log(e);
-        });
+        textsecure.messaging
+          .sendRequestConfigurationSyncMessage()
+          .catch(error => {
+            window.log.error(
+              'Import complete, but failed to send sync message',
+              error && error.stack ? error.stack : error
+            );
+          });
       }
     }
 
     storage.onready(async () => {
-      const shouldSkipAttachmentMigrationForNewUsers = firstRun === true;
-      if (shouldSkipAttachmentMigrationForNewUsers) {
-        const database = Migrations0DatabaseWithAttachmentData.getDatabase();
-        const connection = await Signal.Database.open(
-          database.name,
-          database.version
-        );
-        await Signal.Settings.markAttachmentMigrationComplete(connection);
-      }
       idleDetector.start();
     });
   }
@@ -546,7 +808,7 @@
     if (id === textsecure.storage.user.getNumber()) {
       // special case for syncing details about ourselves
       if (details.profileKey) {
-        console.log('Got sync message with our own profile key');
+        window.log.info('Got sync message with our own profile key');
         storage.put('profileKey', details.profileKey);
       }
     }
@@ -556,7 +818,7 @@
     });
     const validationError = c.validateNumber();
     if (validationError) {
-      console.log(
+      window.log.error(
         'Invalid contact received:',
         Errors.toLogFormat(validationError)
       );
@@ -598,24 +860,17 @@
       );
       const { expireTimer } = details;
       const isValidExpireTimer = typeof expireTimer === 'number';
-      if (!isValidExpireTimer) {
-        console.log(
-          'Ignore invalid expire timer.',
-          'Expected numeric `expireTimer`, got:',
-          expireTimer
+      if (isValidExpireTimer) {
+        const source = textsecure.storage.user.getNumber();
+        const receivedAt = Date.now();
+
+        await conversation.updateExpirationTimer(
+          expireTimer,
+          source,
+          receivedAt,
+          { fromSync: true }
         );
-        return;
       }
-
-      const source = textsecure.storage.user.getNumber();
-      const receivedAt = Date.now();
-
-      await conversation.updateExpirationTimer(
-        expireTimer,
-        source,
-        receivedAt,
-        { fromSync: true }
-      );
 
       if (details.verified) {
         const { verified } = details;
@@ -628,10 +883,8 @@
         verifiedEvent.viaContactSync = true;
         await onVerified(verifiedEvent);
       }
-
-      ev.confirm();
     } catch (error) {
-      console.log('onContactReceived error:', Errors.toLogFormat(error));
+      window.log.error('onContactReceived error:', Errors.toLogFormat(error));
     }
   }
 
@@ -666,11 +919,6 @@
     const { expireTimer } = details;
     const isValidExpireTimer = typeof expireTimer === 'number';
     if (!isValidExpireTimer) {
-      console.log(
-        'Ignore invalid expire timer.',
-        'Expected numeric `expireTimer`, got:',
-        expireTimer
-      );
       return;
     }
 
@@ -721,11 +969,13 @@
       const message = createMessage(data);
       const isDuplicate = await isMessageDuplicate(message);
       if (isDuplicate) {
-        console.log('Received duplicate message', message.idForLogging());
+        window.log.warn('Received duplicate message', message.idForLogging());
         return event.confirm();
       }
 
-      const upgradedMessage = await upgradeMessageSchema(data.message);
+      const withQuoteReference = await copyFromQuotedMessage(data.message);
+      const upgradedMessage = await upgradeMessageSchema(withQuoteReference);
+
       await ConversationController.getOrCreateAndWait(
         messageDescriptor.id,
         messageDescriptor.type
@@ -734,6 +984,80 @@
         initialLoadComplete,
       });
     };
+  }
+
+  async function copyFromQuotedMessage(message) {
+    const { quote } = message;
+    if (!quote) {
+      return message;
+    }
+
+    const { attachments, id, author } = quote;
+    const firstAttachment = attachments[0];
+
+    const collection = await window.Signal.Data.getMessagesBySentAt(id, {
+      MessageCollection: Whisper.MessageCollection,
+    });
+    const queryMessage = collection.find(item => {
+      const messageAuthor = item.getContact();
+
+      return messageAuthor && author === messageAuthor.id;
+    });
+
+    if (!queryMessage) {
+      quote.referencedMessageNotFound = true;
+      return message;
+    }
+
+    quote.text = queryMessage.get('body');
+    if (firstAttachment) {
+      firstAttachment.thumbnail = null;
+    }
+
+    if (
+      !firstAttachment ||
+      (!window.Signal.Util.GoogleChrome.isImageTypeSupported(
+        firstAttachment.contentType
+      ) &&
+        !window.Signal.Util.GoogleChrome.isVideoTypeSupported(
+          firstAttachment.contentType
+        ))
+    ) {
+      return message;
+    }
+
+    try {
+      if (queryMessage.get('schemaVersion') < Message.CURRENT_SCHEMA_VERSION) {
+        const upgradedMessage = await upgradeMessageSchema(
+          queryMessage.attributes
+        );
+        queryMessage.set(upgradedMessage);
+        await window.Signal.Data.saveMessage(upgradedMessage, {
+          Message: Whisper.Message,
+        });
+      }
+    } catch (error) {
+      window.log.error(
+        'Problem upgrading message quoted message from database',
+        Errors.toLogFormat(error)
+      );
+      return message;
+    }
+
+    const queryAttachments = queryMessage.get('attachments') || [];
+
+    if (queryAttachments.length === 0) {
+      return message;
+    }
+
+    const queryFirst = queryAttachments[0];
+    const { thumbnail } = queryFirst;
+
+    if (thumbnail && thumbnail.path) {
+      firstAttachment.thumbnail = thumbnail;
+    }
+
+    return message;
   }
 
   // Received:
@@ -766,7 +1090,7 @@
       messageDescriptor.id,
       messageDescriptor.type
     );
-    await conversation.save({ profileSharing: true });
+    await wrapDeferred(conversation.save({ profileSharing: true }));
     return confirm();
   }
 
@@ -793,31 +1117,18 @@
     createMessage: createSentMessage,
   });
 
-  function isMessageDuplicate(message) {
-    return new Promise(resolve => {
-      const fetcher = new Whisper.Message();
-      const options = {
-        index: {
-          name: 'unique',
-          value: [
-            message.get('source'),
-            message.get('sourceDevice'),
-            message.get('sent_at'),
-          ],
-        },
-      };
-
-      fetcher.fetch(options).always(() => {
-        if (fetcher.get('id')) {
-          return resolve(true);
-        }
-
-        return resolve(false);
+  async function isMessageDuplicate(message) {
+    try {
+      const { attributes } = message;
+      const result = await window.Signal.Data.getMessageBySender(attributes, {
+        Message: Whisper.Message,
       });
-    }).catch(error => {
-      console.log('isMessageDuplicate error:', Errors.toLogFormat(error));
+
+      return Boolean(result);
+    } catch (error) {
+      window.log.error('isMessageDuplicate error:', Errors.toLogFormat(error));
       return false;
-    });
+    }
   }
 
   function initIncomingMessage(data) {
@@ -836,7 +1147,7 @@
 
   async function onError(ev) {
     const { error } = ev;
-    console.log('background onError:', Errors.toLogFormat(error));
+    window.log.error('background onError:', Errors.toLogFormat(error));
 
     if (
       error &&
@@ -845,21 +1156,45 @@
     ) {
       Whisper.events.trigger('unauthorized');
 
-      console.log(
+      window.log.warn(
         'Client is no longer authorized; deleting local configuration'
       );
       Whisper.Registration.remove();
-      const previousNumberId = textsecure.storage.get('number_id');
+
+      const NUMBER_ID_KEY = 'number_id';
+      const LAST_PROCESSED_INDEX_KEY = 'attachmentMigration_lastProcessedIndex';
+      const IS_MIGRATION_COMPLETE_KEY = 'attachmentMigration_isComplete';
+
+      const previousNumberId = textsecure.storage.get(NUMBER_ID_KEY);
+      const lastProcessedIndex = textsecure.storage.get(
+        LAST_PROCESSED_INDEX_KEY
+      );
+      const isMigrationComplete = textsecure.storage.get(
+        IS_MIGRATION_COMPLETE_KEY
+      );
 
       try {
         await textsecure.storage.protocol.removeAllConfiguration();
+
         // These two bits of data are important to ensure that the app loads up
         //   the conversation list, instead of showing just the QR code screen.
         Whisper.Registration.markEverDone();
-        textsecure.storage.put('number_id', previousNumberId);
-        console.log('Successfully cleared local configuration');
+        textsecure.storage.put(NUMBER_ID_KEY, previousNumberId);
+
+        // These two are important to ensure we don't rip through every message
+        //   in the database attempting to upgrade it after starting up again.
+        textsecure.storage.put(
+          IS_MIGRATION_COMPLETE_KEY,
+          isMigrationComplete || false
+        );
+        textsecure.storage.put(
+          LAST_PROCESSED_INDEX_KEY,
+          lastProcessedIndex || null
+        );
+
+        window.log.info('Successfully cleared local configuration');
       } catch (eraseError) {
-        console.log(
+        window.log.error(
           'Something went wrong clearing local configuration',
           eraseError && eraseError.stack ? eraseError.stack : eraseError
         );
@@ -871,7 +1206,7 @@
     if (error && error.name === 'HTTPError' && error.code === -1) {
       // Failed to connect to server
       if (navigator.onLine) {
-        console.log('retrying in 1 minute');
+        window.log.info('retrying in 1 minute');
         setTimeout(connect, 60000);
 
         Whisper.events.trigger('reconnectTimer');
@@ -925,7 +1260,7 @@
     const readAt = ev.timestamp;
     const { timestamp } = ev.read;
     const { reader } = ev.read;
-    console.log('read receipt', reader, timestamp);
+    window.log.info('read receipt', reader, timestamp);
 
     if (!storage.get('read-receipt-setting')) {
       return ev.confirm();
@@ -947,7 +1282,7 @@
     const readAt = ev.timestamp;
     const { timestamp } = ev.read;
     const { sender } = ev.read;
-    console.log('read sync', sender, timestamp);
+    window.log.info('read sync', sender, timestamp);
 
     const receipt = Whisper.ReadSyncs.add({
       sender,
@@ -971,7 +1306,10 @@
     });
     const error = c.validateNumber();
     if (error) {
-      console.log('Invalid verified sync received:', Errors.toLogFormat(error));
+      window.log.error(
+        'Invalid verified sync received:',
+        Errors.toLogFormat(error)
+      );
       return;
     }
 
@@ -986,10 +1324,10 @@
         state = 'UNVERIFIED';
         break;
       default:
-        console.log(`Got unexpected verified state: ${ev.verified.state}`);
+        window.log.error(`Got unexpected verified state: ${ev.verified.state}`);
     }
 
-    console.log(
+    window.log.info(
       'got verified sync for',
       number,
       state,
@@ -1021,7 +1359,7 @@
 
   function onDeliveryReceipt(ev) {
     const { deliveryReceipt } = ev;
-    console.log(
+    window.log.info(
       'delivery receipt from',
       `${deliveryReceipt.source}.${deliveryReceipt.sourceDevice}`,
       deliveryReceipt.timestamp

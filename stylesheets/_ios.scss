@@ -1,488 +1,408 @@
-$ios-header-border-color: rgba(0, 0, 0, 0.05);
-$ios-border-color: rgba(0, 0, 0, 0.1);
+// When paired with an iOS device, this stylesheet will apply
 
-.ios {
-  #header {
-    height: $header-height;
-    border-bottom: 1px solid $ios-header-border-color;
-    border-width: 0 1px 1px 0;
-    background-color: $grey_l;
-    color: $grey_d;
-    h1 {
-      display: none;
-    }
-  }
-  .gutter {
-    border-right: 1px solid $ios-border-color;
-    .content {
-      height: calc(100% - #{$header-height});
-      background: $ios-border-color;
-    }
-    .contact {
-      background: $grey_l;
-      margin-right: 0;
+.ios-theme {
+  // _modules
 
-      &.selected {
-        background: $blue;
-        color: white;
-        .last-timestamp {
-          color: white;
-        }
-      }
-    }
-  }
-  .banner {
-    top: 15px;
+  .module-message__container--outgoing {
+    background-color: $color-signal-blue;
+    color: $color-white;
   }
 
-  .tool-bar {
-    float: left;
-    padding: 15px;
+  .module-message__container--incoming {
+    background-color: $color-light-10;
+    color: $color-light-90;
   }
-  input[type='text']:active,
-  input[type='text']:focus,
-  input[type='search']:active,
-  input[type='search']:focus,
-  input[type='search'].active,
-  form.active {
-    outline-offset: 0;
-    outline: -webkit-focus-ring-color auto 5px;
+
+  .module-message__container--incoming-grey {
+    background-color: $color-light-10;
   }
-  input.search {
-    border-radius: 5px;
-    width: 220px;
-    height: 34px;
-    padding-left: $search-padding-left-ios;
-    line-height: 34px;
-    background-color: #dddddd;
-    &.active.rtl {
-      background-position: left $search-padding-left-ios center;
-    }
+  .module-message__container--incoming-blue {
+    background-color: $color-light-10;
   }
-  .conversation-header {
-    background-color: $grey_l;
-    color: $grey_d;
-    border-color: $ios-header-border-color;
-    text-align: left;
+  .module-message__container--incoming-cyan {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-deep_orange {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-green {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-indigo {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-pink {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-purple {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-red {
+    background-color: $color-light-10;
+  }
+  .module-message__container--incoming-teal {
+    background-color: $color-light-10;
+  }
 
-    // Without this, it interacts poorly with 100% height placeholder shown on startup
-    position: absolute;
-    top: 0;
-    width: 100%;
-    z-index: 1;
+  .module-message__author {
+    color: $color-light-90;
+  }
 
-    .conversation-title {
-      line-height: $header-height;
-
-      .verified-icon {
-        @include color-svg('../images/verified-check.svg', #454545);
-      }
-    }
-
-    .avatar {
-      display: none;
+  .module-message__text {
+    color: $color-white;
+    font-size: 14px;
+    a {
+      text-decoration: underline;
+      color: $color-white;
     }
   }
 
-  .conversation .panel,
-  .conversation .react-wrapper {
-    position: absolute;
-    top: $header-height;
-    bottom: 0;
-    width: 100%;
+  .module-message__text--incoming {
+    color: $color-light-90;
+    a {
+      text-decoration: underline;
+      color: $color-light-90;
+    }
   }
 
-  .settings h3,
-  .menu-list li {
-    text-transform: capitalize;
+  .module-message__metadata__date {
+    color: $color-white-07;
   }
+  .module-message__metadata__date--incoming {
+    color: $color-light-45;
+  }
+  .module-message__metadata__date--with-image-no-caption {
+    color: $color-white;
+  }
+
+  .module-message__metadata__status-icon--sending {
+    @include color-svg('../images/sending.svg', $color-white);
+  }
+
+  .module-message__metadata__status-icon--sent {
+    @include color-svg('../images/check-circle-outline.svg', $color-white-07);
+  }
+  .module-message__metadata__status-icon--delivered {
+    @include color-svg('../images/double-check.svg', $color-white-07);
+  }
+  .module-message__metadata__status-icon--read {
+    @include color-svg('../images/read.svg', $color-white-07);
+  }
+
+  .module-message__metadata__status-icon--with-image-no-caption {
+    background-color: $color-white;
+  }
+
+  .module-message__broken-image {
+    color: $color-white;
+  }
+
+  .module-message__broken-image--incoming {
+    color: $color-light-90;
+  }
+
+  .module-message__broken-video-screenshot {
+    color: $color-white;
+  }
+
+  .module-message__broken-video-screenshot--incoming {
+    color: $color-light-90;
+  }
+
+  .module-message__generic-attachment__file-name {
+    color: $color-white;
+  }
+
+  .module-message__generic-attachment__file-name--incoming {
+    color: $color-light-90;
+  }
+
+  .module-message__generic-attachment__file-size {
+    color: $color-white;
+  }
+
+  .module-message__generic-attachment__file-size--incoming {
+    color: $color-light-90;
+  }
+
+  .module-quote--incoming {
+    background-color: $color-signal-blue-025;
+    border-left-color: $color-signal-blue;
+  }
+
+  .module-quote--outgoing-you {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-grey {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-blue {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-cyan {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-deep_orange {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-green {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-indigo {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-pink {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-purple {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-red {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+  .module-quote--outgoing-teal {
+    border-left-color: $color-white;
+    background-color: $color-white-06;
+  }
+
+  .module-quote__primary__author--grey {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--blue {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--cyan {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--deep_orange {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--green {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--indigo {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--pink {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--purple {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--red {
+    color: $color-light-90;
+  }
+  .module-quote__primary__author--teal {
+    color: $color-light-90;
+  }
+
+  .module-quote__reference-warning--incoming {
+    background-color: $color-signal-blue-mix;
+  }
+
+  // When you're composing a new quote
   .bottom-bar {
-    padding: 15px;
-    min-height: 30px;
-    border-top: 1px solid $ios-border-color;
-    form.send {
-      border-radius: 5px;
-      border: 1px solid $ios-border-color;
+    .module-quote {
+      background-color: $color-signal-blue-025;
+      border-left-color: $color-signal-blue;
     }
   }
 
-  .error-message.content,
-  .control .content {
-    padding: 10px;
-  }
+  &.dark-theme {
+    // _modules
 
-  .message-container,
-  .message-list {
-    .bubble .content {
-      margin-top: 0px;
+    .module-message__container--incoming {
+      background-color: $color-dark-70;
+      color: $color-white;
     }
-  }
 
-  .embedded-contact {
-    margin: 0;
-    color: white;
+    .module-message__container--incoming-grey {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-blue {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-cyan {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-deep_orange {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-green {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-indigo {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-pink {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-purple {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-red {
+      background-color: $color-dark-70;
+    }
+    .module-message__container--incoming-teal {
+      background-color: $color-dark-70;
+    }
 
-    .first-line {
-      margin: 0;
-      padding: 10px;
+    .module-message__author {
+      color: $color-white;
+    }
 
-      .text-container {
-        .contact-name {
-          color: white;
-        }
+    .module-message__text--incoming {
+      color: $color-white;
+      a {
+        text-decoration: underline;
+        color: $color-white;
       }
     }
 
-    .send-message {
-      font-weight: normal;
-      border-bottom: none;
-      margin-top: 0;
-      color: white;
-
-      .bubble-icon {
-        @include color-svg('../images/chat-bubble-outline.svg', white);
-      }
-    }
-  }
-
-  .incoming .embedded-contact {
-    .first-line {
-      .text-container {
-        .contact-name {
-          color: $blue;
-        }
-      }
+    .module-message__metadata__date--incoming {
+      color: $color-white;
     }
 
-    color: black;
+    .module-message__broken-image--incoming {
+      color: $color-white;
+    }
+    .module-message__broken-video-screenshot--incoming {
+      color: $color-white;
+    }
+    .module-message__generic-attachment__file-name--incoming {
+      color: $color-white;
+    }
+    .module-message__generic-attachment__file-size--incoming {
+      color: $color-white;
+    }
 
-    .send-message {
-      color: $blue;
+    .module-quote__primary__author {
+      color: $color-light-90;
+    }
 
-      .bubble-icon {
-        @include color-svg('../images/chat-bubble-outline.svg', $blue);
+    .module-quote__primary__author--grey {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--blue {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--cyan {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--deep_orange {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--green {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--indigo {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--pink {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--purple {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--red {
+      color: $color-light-90;
+    }
+    .module-quote__primary__author--teal {
+      color: $color-light-90;
+    }
+
+    .module-quote__primary__text {
+      color: $color-light-90;
+      a {
+        color: $color-light-90;
       }
     }
-  }
 
-  .embedded-contact + .content {
-    border-bottom: 1px solid white;
-  }
+    .module-quote__primary__type-label {
+      color: $color-light-90;
+    }
 
-  .quoted-message {
-    // Not ideal, but necessary to override the specificity of the android theme color
-    //   classes used in conversations.scss
-    background-color: white !important;
-    border: none !important;
-    border-top-left-radius: 15px;
-    border-top-right-radius: 15px;
-    border-bottom-left-radius: 0px;
-    border-bottom-right-radius: 0px;
+    .module-quote__primary__type-label--incoming {
+      color: $color-white;
+    }
 
-    margin-top: 0px !important;
-    margin-bottom: 0px;
-    margin-left: 0px;
-    margin-right: 0px;
+    .module-quote__primary__author--incoming {
+      color: $color-white;
+    }
 
-    .primary {
-      padding: 10px;
+    .module-quote__primary__text--incoming {
+      color: $color-white;
+      a {
+        color: $color-white;
+      }
+    }
 
-      .text,
-      .filename-label,
-      .type-label {
-        border-left: 2px solid $grey_l1;
-        padding: 5px;
-        padding-left: 7px;
-        // Without this smaller bottom padding, text beyond four lines still shows up!
-        padding-bottom: 2px;
-        color: black;
+    .module-quote__generic-file__text {
+      color: $color-light-90;
+    }
+
+    .module-quote__generic-file__text--incoming {
+      color: $color-white;
+    }
+
+    .module-quote__reference-warning {
+      background-color: $color-white-04;
+    }
+
+    .module-quote__reference-warning--incoming {
+      background-color: $color-signal-blue-050;
+    }
+
+    .module-quote__reference-warning__text {
+      color: $color-light-90;
+    }
+
+    .module-quote__reference-warning__text--incoming {
+      color: $color-white;
+    }
+
+    .module-quote__reference-warning__icon {
+      @include color-svg('../images/broken-link.svg', $color-light-60);
+    }
+
+    .module-quote__reference-warning__icon--incoming {
+      @include color-svg('../images/broken-link.svg', $color-white-085);
+    }
+
+    // When you're composing a new quote
+    .bottom-bar {
+      .module-quote__primary__author {
+        color: $color-white;
+      }
+
+      .module-quote__primary__type-label {
+        color: $color-white;
+      }
+
+      .module-quote__generic-file__text {
+        color: $color-white;
+      }
+
+      .module-quote__primary__text {
+        color: $color-white;
         a {
-          color: $blue;
-        }
-      }
-
-      .author {
-        display: none;
-      }
-
-      .ios-label {
-        display: block;
-        color: $grey_l1;
-        font-size: smaller;
-        margin-bottom: 3px;
-      }
-    }
-
-    .icon-container {
-      height: 61px;
-      width: 61px;
-      min-width: 61px;
-
-      .circle-background {
-        left: 12px;
-        right: 12px;
-        top: 12px;
-        bottom: 12px;
-
-        background-color: $blue !important;
-      }
-
-      .icon {
-        left: 18px;
-        right: 18px;
-        top: 18px;
-        bottom: 18px;
-
-        background-color: white !important;
-      }
-
-      .inner {
-        padding: 12px;
-        height: 61px;
-        text-align: center;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-    }
-
-    .close-container {
-      flex: initial;
-      min-width: 32px;
-      width: 32px;
-      height: 50px;
-      position: relative;
-
-      top: auto;
-      right: auto;
-
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      -webkit-mask: none;
-      background: none;
-
-      .close-button {
-        height: 20px;
-        width: 20px;
-
-        @include color-svg('../images/close-circle.svg', $grey_l4);
-      }
-    }
-
-    .from-me {
-      .primary {
-        .text,
-        .filename-label,
-        .type-label {
-          border-left: 2px solid $blue;
+          color: $color-white;
         }
       }
     }
-  }
 
-  .incoming .quoted-message {
-    border-bottom: 1px solid lightgray !important;
-  }
-
-  .quoted-message.from-me .primary {
-    .text,
-    .filename-label,
-    .type-label {
-      border-left: 2px solid $blue;
+    .module-embedded-contact__contact-method {
+      color: $color-white-07;
     }
-  }
-
-  .outgoing .quoted-message,
-  .private .incoming .quoted-message {
-    margin-top: 0px;
-  }
-
-  .outgoing .quoted-message .icon-container .circle-background {
-    background-color: lightgray !important;
-  }
-
-  .bottom-bar {
-    .quote-wrapper {
-      margin-right: 0px;
-      margin-bottom: 15px;
-    }
-
-    .quoted-message {
-      background: none !important;
-      border-radius: 0;
-
-      .primary {
-        padding: 0px;
-
-        .ios-label {
-          color: $grey_l4;
-        }
-      }
-
-      .icon-container {
-        height: 50px;
-        width: 50px;
-        min-width: 50px;
-
-        .circle-background {
-          left: 6px;
-          right: 6px;
-          top: 6px;
-          bottom: 6px;
-
-          background-color: $blue !important;
-        }
-
-        .icon {
-          left: 12px;
-          right: 12px;
-          top: 12px;
-          bottom: 12px;
-        }
-
-        .inner {
-          padding: 0px;
-          height: 50px;
-        }
-      }
-    }
-  }
-
-  .attachments .bubbled {
-    border-radius: 15px;
-
-    padding: 10px;
-    padding-top: 0px;
-    padding-bottom: 5px;
-
-    video,
-    audio {
-      margin-bottom: 5px;
-    }
-
-    position: relative;
-  }
-
-  .tail-wrapper {
-    margin-bottom: 5px;
-  }
-  .inner-bubble {
-    border-radius: 15px;
-    overflow: hidden;
-
-    .body {
-      margin-top: 0;
-      display: inline-block;
-      padding: 10px;
-      position: relative;
-      word-break: break-word;
-    }
-  }
-
-  .tail-wrapper.with-tail {
-    position: relative;
-
-    &:before,
-    &:after {
-      content: '';
-      display: block;
-      border-radius: 20px;
-      position: absolute;
-      width: 10px;
-    }
-    &:before {
-      right: -1px;
-      bottom: -3px;
-      height: 10px;
-      border-radius: 20px;
-      background: $blue;
-    }
-    &:after {
-      height: 11px;
-      right: -6px;
-      bottom: -3px;
-      background: #eee;
-    }
-  }
-
-  .meta {
-    clear: both;
-  }
-
-  .outgoing .tail-wrapper {
-    float: right;
-
-    .inner-bubble {
-      max-width: 100%;
-    }
-  }
-
-  .incoming .tail-wrapper {
-    float: left;
-
-    .inner-bubble {
-      max-width: 100%;
-    }
-  }
-
-  // The browser doesn't always clip the border-radius properly, so we can get a
-  //   partial-pixel halo effect. Sadly, it is still needed because a quote can force the
-  //   bubble wider than an attached image, and we need a background color on the bottom
-  //   section if the image doesn't cover it all.
-  .outgoing .tail-wrapper {
-    .inner-bubble {
-      background-color: $blue;
-    }
-
-    &,
-    .body,
-    a {
-      @include invert-text-color;
-    }
-  }
-
-  .incoming .tail-wrapper {
-    &.with-tail {
-      &:before {
-        left: -1px;
-        background-color: white;
-      }
-      &:after {
-        left: -6px;
-      }
-    }
-
-    .inner-bubble {
-      background-color: white;
-      color: black;
-    }
-  }
-
-  .outgoing .attachments .fileView .icon {
-    @include color-svg('../images/file.svg', white);
-    &.audio {
-      @include color-svg('../images/audio.svg', white);
-    }
-    &.video {
-      @include color-svg('../images/video.svg', white);
-    }
-    &.voice {
-      @include color-svg('../images/voice.svg', white);
-    }
-  }
-
-  .attachment {
-    a {
-      border-radius: 15px;
-    }
-    img {
-      margin-right: auto;
-      margin-left: auto;
-    }
-  }
-  .hourglass {
-    @include hourglass(#999);
   }
 }

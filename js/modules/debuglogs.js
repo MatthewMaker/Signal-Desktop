@@ -14,9 +14,16 @@ const USER_AGENT = `Signal Desktop ${VERSION}`;
 // https://github.com/sindresorhus/got/pull/466
 const submitFormData = (form, url) =>
   new Promise((resolve, reject) => {
-    form.submit(url, error => {
+    form.submit(url, (error, response) => {
       if (error) {
         return reject(error);
+      }
+
+      const { statusCode } = response;
+      if (statusCode !== 204) {
+        return reject(
+          new Error(`Failed to upload to S3, got status ${statusCode}`)
+        );
       }
 
       return resolve();
@@ -31,6 +38,9 @@ exports.upload = async content => {
       'user-agent': USER_AGENT,
     },
   });
+  if (!signedForm.body) {
+    throw new Error('Failed to retrieve token');
+  }
   const { fields, url } = signedForm.body;
 
   const form = new FormData();
@@ -44,7 +54,6 @@ exports.upload = async content => {
 
   const contentBuffer = Buffer.from(content, 'utf8');
   const contentType = 'text/plain';
-  form.append('User-Agent', USER_AGENT);
   form.append('Content-Type', contentType);
   form.append('file', contentBuffer, {
     contentType,
