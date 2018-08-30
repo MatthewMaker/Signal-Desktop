@@ -13,9 +13,11 @@ release/
 /dev-app-update.yml
 .nyc_output/
 *.sublime*
+sql/
 
 # generated files
 js/components.js
+js/util_worker.js
 js/libtextsecure.js
 libtextsecure/components.js
 libtextsecure/test/test.js

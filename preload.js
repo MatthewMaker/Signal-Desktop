@@ -1,9 +1,8 @@
 /* global Whisper: false */
 /* global window: false */
 
-console.log('preload');
-
 const electron = require('electron');
+const semver = require('semver');
 
 const { deferredToPromise } = require('./js/modules/deferred_to_promise');
 
@@ -29,6 +28,18 @@ window.getExpiration = () => config.buildExpiration;
 window.getNodeVersion = () => config.node_version;
 window.getHostName = () => config.hostname;
 
+window.isBeforeVersion = (toCheck, baseVersion) => {
+  try {
+    return semver.lt(toCheck, baseVersion);
+  } catch (error) {
+    window.log.error(
+      `isBeforeVersion error: toCheck: ${toCheck}, baseVersion: ${baseVersion}`,
+      error && error.stack ? error.stack : error
+    );
+    return true;
+  }
+};
+
 window.wrapDeferred = deferredToPromise;
 
 const ipc = electron.ipcRenderer;
@@ -42,11 +53,11 @@ window.open = () => null;
 window.eval = global.eval = () => null;
 
 window.drawAttention = () => {
-  console.log('draw attention');
+  window.log.info('draw attention');
   ipc.send('draw-attention');
 };
 window.showWindow = () => {
-  console.log('show window');
+  window.log.info('show window');
   ipc.send('show-window');
 };
 
@@ -57,7 +68,7 @@ window.setMenuBarVisibility = visibility =>
   ipc.send('set-menu-bar-visibility', visibility);
 
 window.restart = () => {
-  console.log('restart');
+  window.log.info('restart');
   ipc.send('restart');
 };
 
@@ -175,7 +186,7 @@ window.removeSetupMenuItems = () => ipc.send('remove-setup-menu-items');
 require('./js/logging');
 
 if (config.proxyUrl) {
-  console.log('using proxy url', config.proxyUrl);
+  window.log.info('Using provided proxy url');
 }
 
 window.nodeSetImmediate = setImmediate;
@@ -228,6 +239,7 @@ window.Signal = Signal.setup({
   Attachments,
   userDataPath: app.getPath('userData'),
   getRegionCode: () => window.storage.get('regionCode'),
+  logger: window.log,
 });
 
 // Pulling these in separately since they access filesystem, electron

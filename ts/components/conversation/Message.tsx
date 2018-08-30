@@ -78,8 +78,10 @@ export interface Props {
     authorName?: string;
     authorColor: Color;
     onClick?: () => void;
+    referencedMessageNotFound: boolean;
   };
   authorAvatarPath?: string;
+  isExpired: boolean;
   expirationLength?: number;
   expirationTimestamp?: number;
   onClickAttachment?: () => void;
@@ -210,15 +212,22 @@ export class Message extends React.Component<Props, State> {
     }
   }
 
+  public componentDidUpdate() {
+    this.checkExpired();
+  }
+
   public checkExpired() {
     const now = Date.now();
-    const { expirationTimestamp, expirationLength } = this.props;
+    const { isExpired, expirationTimestamp, expirationLength } = this.props;
 
     if (!expirationTimestamp || !expirationLength) {
       return;
     }
+    if (this.expiredTimeout) {
+      return;
+    }
 
-    if (now >= expirationTimestamp) {
+    if (isExpired || now >= expirationTimestamp) {
       this.setState({
         expiring: true,
       });
@@ -395,22 +404,33 @@ export class Message extends React.Component<Props, State> {
         <div
           onClick={onClickAttachment}
           role="button"
-          className="module-message__attachment-container"
+          className={classNames(
+            'module-message__attachment-container',
+            withCaption
+              ? 'module-message__attachment-container--with-content-below'
+              : null,
+            withContentAbove
+              ? 'module-message__attachment-container--with-content-above'
+              : null
+          )}
         >
           <img
             onError={this.handleImageErrorBound}
-            className={classNames(
-              'module-message__img-attachment',
-              withCaption
-                ? 'module-message__img-attachment--with-content-below'
-                : null,
-              withContentAbove
-                ? 'module-message__img-attachment--with-content-above'
-                : null
-            )}
+            className="module-message__img-attachment"
             height={Math.min(MAXIMUM_IMG_HEIGHT, height)}
             src={attachment.url}
             alt={i18n('imageAttachmentAlt')}
+          />
+          <div
+            className={classNames(
+              'module-message__img-border-overlay',
+              withCaption
+                ? 'module-message__img-border-overlay--with-content-below'
+                : null,
+              withContentAbove
+                ? 'module-message__img-border-overlay--with-content-above'
+                : null
+            )}
           />
           {!withCaption && !collapseMetadata ? (
             <div className="module-message__img-overlay" />
@@ -441,22 +461,33 @@ export class Message extends React.Component<Props, State> {
         <div
           onClick={onClickAttachment}
           role="button"
-          className="module-message__attachment-container"
+          className={classNames(
+            'module-message__attachment-container',
+            withCaption
+              ? 'module-message__attachment-container--with-content-below'
+              : null,
+            withContentAbove
+              ? 'module-message__attachment-container--with-content-above'
+              : null
+          )}
         >
           <img
             onError={this.handleImageErrorBound}
-            className={classNames(
-              'module-message__img-attachment',
-              withCaption
-                ? 'module-message__img-attachment--with-content-below'
-                : null,
-              withContentAbove
-                ? 'module-message__img-attachment--with-content-above'
-                : null
-            )}
+            className="module-message__img-attachment"
             alt={i18n('videoAttachmentAlt')}
             height={Math.min(MAXIMUM_IMG_HEIGHT, height)}
             src={screenshot.url}
+          />
+          <div
+            className={classNames(
+              'module-message__img-border-overlay',
+              withCaption
+                ? 'module-message__img-border-overlay--with-content-below'
+                : null,
+              withContentAbove
+                ? 'module-message__img-border-overlay--with-content-above'
+                : null
+            )}
           />
           {!withCaption && !collapseMetadata ? (
             <div className="module-message__img-overlay" />
@@ -550,6 +581,7 @@ export class Message extends React.Component<Props, State> {
         authorProfileName={quote.authorProfileName}
         authorName={quote.authorName}
         authorColor={quote.authorColor}
+        referencedMessageNotFound={quote.referencedMessageNotFound}
         isFromMe={quote.isFromMe}
         withContentAbove={withContentAbove}
       />
@@ -667,6 +699,7 @@ export class Message extends React.Component<Props, State> {
 
     return (
       <div
+        dir="auto"
         className={classNames(
           'module-message__text',
           `module-message__text--${direction}`,
@@ -760,7 +793,12 @@ export class Message extends React.Component<Props, State> {
     const last = direction === 'incoming' ? menuButton : downloadButton;
 
     return (
-      <div className="module-message__buttons">
+      <div
+        className={classNames(
+          'module-message__buttons',
+          `module-message__buttons--${direction}`
+        )}
+      >
         {first}
         {replyButton}
         {last}
@@ -770,9 +808,12 @@ export class Message extends React.Component<Props, State> {
 
   public renderContextMenu(triggerId: string) {
     const {
+      attachment,
       direction,
       status,
       onDelete,
+      onDownload,
+      onReply,
       onRetrySend,
       onShowDetail,
       i18n,
@@ -782,11 +823,50 @@ export class Message extends React.Component<Props, State> {
 
     return (
       <ContextMenu id={triggerId}>
-        <MenuItem onClick={onShowDetail}>{i18n('moreInfo')}</MenuItem>
-        {showRetry ? (
-          <MenuItem onClick={onRetrySend}>{i18n('retrySend')}</MenuItem>
+        {attachment ? (
+          <MenuItem
+            attributes={{
+              className: 'module-message__context__download',
+            }}
+            onClick={onDownload}
+          >
+            {i18n('downloadAttachment')}
+          </MenuItem>
         ) : null}
-        <MenuItem onClick={onDelete}>{i18n('deleteMessage')}</MenuItem>
+        <MenuItem
+          attributes={{
+            className: 'module-message__context__reply',
+          }}
+          onClick={onReply}
+        >
+          {i18n('replyToMessage')}
+        </MenuItem>
+        <MenuItem
+          attributes={{
+            className: 'module-message__context__more-info',
+          }}
+          onClick={onShowDetail}
+        >
+          {i18n('moreInfo')}
+        </MenuItem>
+        {showRetry ? (
+          <MenuItem
+            attributes={{
+              className: 'module-message__context__retry-send',
+            }}
+            onClick={onRetrySend}
+          >
+            {i18n('retrySend')}
+          </MenuItem>
+        ) : null}
+        <MenuItem
+          attributes={{
+            className: 'module-message__context__delete-message',
+          }}
+          onClick={onDelete}
+        >
+          {i18n('deleteMessage')}
+        </MenuItem>
       </ContextMenu>
     );
   }

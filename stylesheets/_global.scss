@@ -16,6 +16,28 @@ body {
   color: $color-light-90;
 }
 
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: $color-white;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $color-light-35;
+  border: 2px solid $color-white;
+
+  &:hover {
+    background: $color-light-45;
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: $color-white;
+}
+
 .dark-overlay {
   position: absolute;
   top: 0;
@@ -136,7 +158,7 @@ a {
   outline: solid 1px $blue;
 }
 
-$avatar-size: 44px;
+$avatar-size: 48px;
 
 .avatar {
   display: inline-block;
@@ -208,6 +230,8 @@ $avatar-size: 44px;
 $unread-badge-size: 21px;
 
 .banner {
+  z-index: 100;
+
   // what's the right color?
   background-color: $blue_l;
   color: black;
@@ -244,13 +268,23 @@ $unread-badge-size: 21px;
   }
 }
 
+$new-contact-left-margin: 16px;
+.new-contact .avatar {
+  margin-left: $new-contact-left-margin;
+}
+
+// Still used for the contact search view
 .contact-details {
-  $left-margin: 8px;
+  $left-margin: 12px;
 
   vertical-align: middle;
   display: inline-block;
   margin: 0 0 0 $left-margin;
-  width: calc(100% - #{$avatar-size} - #{$left-margin} - #{(4/14) + em});
+  width: calc(
+    100% - #{$avatar-size} - #{$new-contact-left-margin} - #{$left-margin} - #{(
+        4/14
+      ) + em}
+  );
   text-align: left;
 
   p {
@@ -270,7 +304,7 @@ $unread-badge-size: 21px;
   }
 
   .number {
-    color: $grey;
+    color: $color-light-60;
     font-size: $font-size-small;
   }
 

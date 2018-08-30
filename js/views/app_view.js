@@ -21,11 +21,18 @@
       openInbox: 'openInbox',
     },
     applyTheme() {
+      const iOS = storage.get('userAgent') === 'OWI';
       const theme = storage.get('theme-setting') || 'light';
       this.$el
         .removeClass('light-theme')
         .removeClass('dark-theme')
         .addClass(`${theme}-theme`);
+
+      if (iOS) {
+        this.$el.addClass('ios-theme');
+      } else {
+        this.$el.removeClass('ios-theme');
+      }
     },
     applyHideMenu() {
       const hideMenuBar = storage.get('hide-menu-bar', false);
@@ -129,7 +136,7 @@
       //     this.initialLoadComplete. An example of this: on a phone-pairing setup.
       _.defaults(options, { initialLoadComplete: this.initialLoadComplete });
 
-      console.log('open inbox');
+      window.log.info('open inbox');
       this.closeInstaller();
 
       if (!this.inboxView) {

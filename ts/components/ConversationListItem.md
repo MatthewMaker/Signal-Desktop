@@ -22,6 +22,7 @@
   phoneNumber="(202) 555-0011"
   name="Mr. Fire🔥"
   color="green"
+  lastUpdated={Date.now() - 5 * 60 * 1000}
   lastMessage={{
     text: 'Just a second',
     status: 'read',
@@ -31,19 +32,108 @@
 />
 ```
 
+#### All types of status
+
+```jsx
+<div>
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    name="Mr. Fire🔥"
+    color="green"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Sending',
+      status: 'sending',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    name="Mr. Fire🔥"
+    color="green"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Sent',
+      status: 'sent',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    name="Mr. Fire🔥"
+    color="green"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Delivered',
+      status: 'delivered',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    name="Mr. Fire🔥"
+    color="green"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Read',
+      status: 'read',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    name="Mr. Fire🔥"
+    color="green"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Error',
+      status: 'error',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+</div>
+```
+
 #### With unread
 
 ```jsx
-<ConversationListItem
-  phoneNumber="(202) 555-0011"
-  hasUnread={true}
-  lastMessage={{
-    text: 'Hey there!',
-    status: 'sending',
-  }}
-  onClick={() => console.log('onClick')}
-  i18n={util.i18n}
-/>
+<div>
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    unreadCount={4}
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Hey there!',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    unreadCount={10}
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Hey there!',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    unreadCount={250}
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Hey there!',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+</div>
 ```
 
 #### Selected
@@ -52,6 +142,7 @@
 <ConversationListItem
   phoneNumber="(202) 555-0011"
   isSelected={true}
+  lastUpdated={Date.now() - 5 * 60 * 1000}
   lastMessage={{
     text: 'Hey there!',
   }}
@@ -68,6 +159,7 @@ We don't want Jumbomoji or links.
 <div>
   <ConversationListItem
     phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text: 'Download at http://signal.org',
     }}
@@ -76,6 +168,7 @@ We don't want Jumbomoji or links.
   />
   <ConversationListItem
     phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text: '🔥',
     }}
@@ -94,6 +187,7 @@ We only show one line.
   <ConversationListItem
     phoneNumber="(202) 555-0011"
     name="Long contact name. Esquire. The third. And stuff. And more! And more!"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text: 'Normal message',
     }}
@@ -102,6 +196,7 @@ We only show one line.
   />
   <ConversationListItem
     phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text:
         "Long line. This is a really really really long line. Really really long. Because that's just how it is",
@@ -111,6 +206,7 @@ We only show one line.
   />
   <ConversationListItem
     phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text:
         "Long line. This is a really really really long line. Really really long. Because that's just how it is",
@@ -122,6 +218,18 @@ We only show one line.
 
   <ConversationListItem
     phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    unreadCount={8}
+    lastMessage={{
+      text:
+        "Long line. This is a really really really long line. Really really long. Because that's just how it is",
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text:
         "Many lines. This is a many-line message.\nLine 2 is really exciting but it shouldn't be seen.\nLine three is even better.\nLine 4, well.",
@@ -131,10 +239,40 @@ We only show one line.
   />
   <ConversationListItem
     phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text:
         "Many lines. This is a many-line message.\nLine 2 is really exciting but it shouldn't be seen.\nLine three is even better.\nLine 4, well.",
       status: 'delivered',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+</div>
+```
+
+#### More narrow
+
+On platforms that show scrollbars all the time, this is true all the time.
+
+```jsx
+<div style={{ width: '280px' }}>
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    name="Long contact name. Esquire. The third. And stuff. And more! And more!"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: 'Normal message',
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text:
+        "Long line. This is a really really really long line. Really really long. Because that's just how it is",
     }}
     onClick={() => console.log('onClick')}
     i18n={util.i18n}
@@ -203,6 +341,16 @@ We only show one line.
     lastUpdated={Date.now() - 5 * 60 * 1000}
     lastMessage={{
       text: null,
+    }}
+    onClick={() => console.log('onClick')}
+    i18n={util.i18n}
+  />
+  <ConversationListItem
+    phoneNumber="(202) 555-0011"
+    lastUpdated={Date.now() - 5 * 60 * 1000}
+    lastMessage={{
+      text: null,
+      status: 'sent',
     }}
     onClick={() => console.log('onClick')}
     i18n={util.i18n}

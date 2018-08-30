@@ -127,13 +127,7 @@
       return this.fetch({ range: [`${number}.1`, `${number}.:`] });
     },
   });
-  const Unprocessed = Model.extend({ storeName: 'unprocessed' });
-  const UnprocessedCollection = Backbone.Collection.extend({
-    storeName: 'unprocessed',
-    database: Whisper.Database,
-    model: Unprocessed,
-    comparator: 'timestamp',
-  });
+  const Unprocessed = Model.extend();
   const IdentityRecord = Model.extend({
     storeName: 'identityKeys',
     validAttributes: [
@@ -212,14 +206,14 @@
       return new Promise(resolve => {
         prekey.fetch().then(
           () => {
-            console.log('Successfully fetched prekey:', keyId);
+            window.log.info('Successfully fetched prekey:', keyId);
             resolve({
               pubKey: prekey.get('publicKey'),
               privKey: prekey.get('privateKey'),
             });
           },
           () => {
-            console.log('Failed to fetch prekey:', keyId);
+            window.log.error('Failed to fetch prekey:', keyId);
             resolve();
           }
         );
@@ -249,7 +243,7 @@
         }
 
         return deferred.then(resolve, error => {
-          console.log(
+          window.log.error(
             'removePreKey error:',
             error && error.stack ? error.stack : error
           );
@@ -271,7 +265,7 @@
         prekey
           .fetch()
           .then(() => {
-            console.log(
+            window.log.info(
               'Successfully fetched signed prekey:',
               prekey.get('id')
             );
@@ -284,7 +278,7 @@
             });
           })
           .fail(() => {
-            console.log('Failed to fetch signed prekey:', keyId);
+            window.log.error('Failed to fetch signed prekey:', keyId);
             resolve();
           });
       });
@@ -373,7 +367,7 @@
               number,
             })
             .fail(e => {
-              console.log('Failed to save session', encodedNumber, e);
+              window.log.error('Failed to save session', encodedNumber, e);
             })
             .always(() => {
               resolve();
@@ -393,7 +387,7 @@
       });
     },
     removeSession(encodedNumber) {
-      console.log('deleting session for ', encodedNumber);
+      window.log.info('deleting session for ', encodedNumber);
       return new Promise(resolve => {
         const session = new Session({ id: encodedNumber });
         session
@@ -436,7 +430,7 @@
               address.getName(),
               deviceId
             );
-            console.log('closing session for', sibling.toString());
+            window.log.info('closing session for', sibling.toString());
             const sessionCipher = new libsignal.SessionCipher(
               textsecure.storage.protocol,
               sibling
@@ -454,7 +448,7 @@
               number,
               deviceId
             );
-            console.log('closing session for', address.toString());
+            window.log.info('closing session for', address.toString());
             const sessionCipher = new libsignal.SessionCipher(
               textsecure.storage.protocol,
               address
@@ -500,19 +494,19 @@
       const existing = identityRecord.get('publicKey');
 
       if (!existing) {
-        console.log('isTrustedForSending: Nothing here, returning true...');
+        window.log.info('isTrustedForSending: Nothing here, returning true...');
         return true;
       }
       if (!equalArrayBuffers(existing, publicKey)) {
-        console.log("isTrustedForSending: Identity keys don't match...");
+        window.log.info("isTrustedForSending: Identity keys don't match...");
         return false;
       }
       if (identityRecord.get('verified') === VerifiedStatus.UNVERIFIED) {
-        console.log('Needs unverified approval!');
+        window.log.error('Needs unverified approval!');
         return false;
       }
       if (this.isNonBlockingApprovalRequired(identityRecord)) {
-        console.log('isTrustedForSending: Needs non-blocking approval!');
+        window.log.error('isTrustedForSending: Needs non-blocking approval!');
         return false;
       }
 
@@ -549,7 +543,7 @@
           const oldpublicKey = identityRecord.get('publicKey');
           if (!oldpublicKey) {
             // Lookup failed, or the current key was removed, so save this one.
-            console.log('Saving new identity...');
+            window.log.info('Saving new identity...');
             identityRecord
               .save({
                 publicKey,
@@ -562,7 +556,7 @@
                 resolve(false);
               }, reject);
           } else if (!equalArrayBuffers(oldpublicKey, publicKey)) {
-            console.log('Replacing existing identity...');
+            window.log.info('Replacing existing identity...');
             const previousStatus = identityRecord.get('verified');
             let verifiedStatus;
             if (
@@ -588,7 +582,7 @@
                 }, reject);
               }, reject);
           } else if (this.isNonBlockingApprovalRequired(identityRecord)) {
-            console.log('Setting approval status...');
+            window.log.info('Setting approval status...');
             identityRecord
               .save({
                 nonblockingApproval,
@@ -680,7 +674,7 @@
                 reject(identityRecord.validationError);
               }
             } else {
-              console.log('No identity record for specified publicKey');
+              window.log.info('No identity record for specified publicKey');
               resolve();
             }
           },
@@ -821,7 +815,7 @@
           })
           .always(() => {
             if (!isPresent && verifiedStatus === VerifiedStatus.DEFAULT) {
-              console.log('No existing record for default status');
+              window.log.info('No existing record for default status');
               return resolve();
             }
 
@@ -946,53 +940,42 @@
 
     // Not yet processed messages - for resiliency
     getAllUnprocessed() {
-      let collection;
-      return new Promise((resolve, reject) => {
-        collection = new UnprocessedCollection();
-        return collection.fetch().then(resolve, reject);
-      }).then(() =>
-        // Return a plain array of plain objects
-        collection.map(model => model.attributes)
-      );
+      return window.Signal.Data.getAllUnprocessed();
+    },
+    getUnprocessedById(id) {
+      return window.Signal.Data.getUnprocessedById(id, { Unprocessed });
     },
     addUnprocessed(data) {
-      return new Promise((resolve, reject) => {
-        const unprocessed = new Unprocessed(data);
-        return unprocessed.save().then(resolve, reject);
+      // We need to pass forceSave because the data has an id already, which will cause
+      //   an update instead of an insert.
+      return window.Signal.Data.saveUnprocessed(data, {
+        forceSave: true,
+        Unprocessed,
       });
     },
-    updateUnprocessed(id, updates) {
-      return new Promise((resolve, reject) => {
-        const unprocessed = new Unprocessed({
-          id,
-        });
-        return unprocessed
-          .fetch()
-          .then(() => unprocessed.save(updates).then(resolve, reject), reject);
-      });
+    saveUnprocessed(data) {
+      return window.Signal.Data.saveUnprocessed(data, { Unprocessed });
     },
     removeUnprocessed(id) {
-      return new Promise((resolve, reject) => {
-        const unprocessed = new Unprocessed({
-          id,
-        });
-        return unprocessed.destroy().then(resolve, reject);
-      });
+      return window.Signal.Data.removeUnprocessed(id, { Unprocessed });
     },
-    removeAllData() {
+    async removeAllData() {
       // First the in-memory caches:
       window.storage.reset(); // items store
       ConversationController.reset(); // conversations store
+      await ConversationController.load();
 
       // Then, the entire database:
-      return Whisper.Database.clear();
+      await Whisper.Database.clear();
+
+      await window.Signal.Data.removeAll();
     },
-    removeAllConfiguration() {
+    async removeAllConfiguration() {
       // First the in-memory cache for the items store:
       window.storage.reset();
 
       // Then anything in the database that isn't a message/conversation/group:
-      return Whisper.Database.clearStores([
+      await Whisper.Database.clearStores([
         'items',
         'identityKeys',
         'sessions',
@@ -1000,6 +983,8 @@
         'preKeys',
         'unprocessed',
       ]);
+
+      await window.Signal.Data.removeAllUnprocessed();
     },
   };
   _.extend(SignalProtocolStore.prototype, Backbone.Events);

@@ -7,7 +7,6 @@
 /* global Signal: false */
 /* global storage: false */
 /* global Whisper: false */
-/* global wrapDeferred: false */
 
 // eslint-disable-next-line func-names
 (function() {
@@ -33,6 +32,21 @@
   Whisper.LeftGroupToast = Whisper.ToastView.extend({
     render_attributes() {
       return { toastMessage: i18n('youLeftTheGroup') };
+    },
+  });
+  Whisper.OriginalNotFoundToast = Whisper.ToastView.extend({
+    render_attributes() {
+      return { toastMessage: i18n('originalMessageNotFound') };
+    },
+  });
+  Whisper.OriginalNoLongerAvailableToast = Whisper.ToastView.extend({
+    render_attributes() {
+      return { toastMessage: i18n('originalMessageNotAvailable') };
+    },
+  });
+  Whisper.FoundButNotLoadedToast = Whisper.ToastView.extend({
+    render_attributes() {
+      return { toastMessage: i18n('messageFoundButNotLoaded') };
     },
   });
 
@@ -159,7 +173,6 @@
           //   need a manual update call.
           onShowSafetyNumber: () => {
             this.showSafetyNumber();
-            this.updateHeader();
           },
           onShowAllMedia: async () => {
             await this.showAllMedia();
@@ -259,7 +272,7 @@
     },
 
     unload(reason) {
-      console.log(
+      window.log.info(
         'unloading conversation',
         this.model.idForLogging(),
         'due to:',
@@ -329,7 +342,7 @@
         return;
       }
 
-      console.log(
+      window.log.info(
         'trimming conversation',
         this.model.idForLogging(),
         'of',
@@ -482,7 +495,7 @@
       const view = this.loadingScreen;
       if (view) {
         const openDelta = Date.now() - this.openStart;
-        console.log(
+        window.log.info(
           'Conversation',
           this.model.idForLogging(),
           'took',
@@ -507,7 +520,7 @@
         this.model.updateVerified().then(() => {
           this.onVerifiedChange();
           this.statusFetch = null;
-          console.log('done with status fetch');
+          window.log.info('done with status fetch');
         })
       );
 
@@ -517,9 +530,7 @@
       const messagesLoaded = this.inProgressFetch || Promise.resolve();
 
       // eslint-disable-next-line more/no-then
-      messagesLoaded
-        .then(this.model.decryptOldIncomingKeyErrors.bind(this))
-        .then(this.onLoaded.bind(this), this.onLoaded.bind(this));
+      messagesLoaded.then(this.onLoaded.bind(this), this.onLoaded.bind(this));
 
       this.view.resetScrollPosition();
       this.$el.trigger('force-resize');
@@ -570,15 +581,66 @@
       }
     },
 
-    scrollToMessage(options = {}) {
-      const { id } = options;
+    async scrollToMessage(options = {}) {
+      const { author, id, referencedMessageNotFound } = options;
 
-      if (!id) {
+      // For simplicity's sake, we show the 'not found' toast no matter what if we were
+      //   not able to find the referenced message when the quote was received.
+      if (referencedMessageNotFound) {
+        const toast = new Whisper.OriginalNotFoundToast();
+        toast.$el.appendTo(this.$el);
+        toast.render();
         return;
       }
 
-      const el = this.$(`#${id}`);
+      // Look for message in memory first, which would tell us if we could scroll to it
+      const targetMessage = this.model.messageCollection.find(item => {
+        const messageAuthor = item.getContact().id;
+
+        if (author !== messageAuthor) {
+          return false;
+        }
+        if (id !== item.get('sent_at')) {
+          return false;
+        }
+
+        return true;
+      });
+
+      // If there's no message already in memory, we won't be scrolling. So we'll gather
+      //   some more information then show an informative toast to the user.
+      if (!targetMessage) {
+        const collection = await window.Signal.Data.getMessagesBySentAt(id, {
+          MessageCollection: Whisper.MessageCollection,
+        });
+        const messageFromDatabase = collection.find(item => {
+          const messageAuthor = item.getContact();
+
+          return messageAuthor && author === messageAuthor.id;
+        });
+
+        if (messageFromDatabase) {
+          const toast = new Whisper.FoundButNotLoadedToast();
+          toast.$el.appendTo(this.$el);
+          toast.render();
+        } else {
+          const toast = new Whisper.OriginalNoLongerAvailableToast();
+          toast.$el.appendTo(this.$el);
+          toast.render();
+        }
+        return;
+      }
+
+      const databaseId = targetMessage.id;
+      const el = this.$(`#${databaseId}`);
       if (!el || el.length === 0) {
+        const toast = new Whisper.OriginalNoLongerAvailableToast();
+        toast.$el.appendTo(this.$el);
+        toast.render();
+
+        window.log.info(
+          `Error: had target message ${id} in messageCollection, but it was not in DOM`
+        );
         return;
       }
 
@@ -592,19 +654,18 @@
       const DEFAULT_DOCUMENTS_FETCH_COUNT = 150;
 
       const conversationId = this.model.get('id');
-      const WhisperMessageCollection = Whisper.MessageCollection;
-      const rawMedia = await Signal.Backbone.Conversation.fetchVisualMediaAttachments(
+      const rawMedia = await Signal.Data.getMessagesWithVisualMediaAttachments(
+        conversationId,
         {
-          conversationId,
-          count: DEFAULT_MEDIA_FETCH_COUNT,
-          WhisperMessageCollection,
+          limit: DEFAULT_MEDIA_FETCH_COUNT,
+          MessageCollection: Whisper.MessageCollection,
         }
       );
-      const documents = await Signal.Backbone.Conversation.fetchFileAttachments(
+      const documents = await Signal.Data.getMessagesWithFileAttachments(
+        conversationId,
         {
-          conversationId,
-          count: DEFAULT_DOCUMENTS_FETCH_COUNT,
-          WhisperMessageCollection,
+          limit: DEFAULT_DOCUMENTS_FETCH_COUNT,
+          MessageCollection: Whisper.MessageCollection,
         }
       );
 
@@ -617,9 +678,10 @@
           // Yep, we really do want to wait for each of these
           // eslint-disable-next-line no-await-in-loop
           rawMedia[i] = await upgradeMessageSchema(message);
-          const model = new Whisper.Message(rawMedia[i]);
           // eslint-disable-next-line no-await-in-loop
-          await wrapDeferred(model.save());
+          await window.Signal.Data.saveMessage(rawMedia[i], {
+            Message: Whisper.Message,
+          });
         }
       }
 
@@ -748,10 +810,18 @@
             this.addScrollDownButtonWithCount(unreadCount);
           }
         }, 1);
+      } else if (this.view.atBottom()) {
+        // If we already thought we were at the bottom, then ensure that's the case.
+        //   Attempting to account for unpredictable completion of message rendering.
+        setTimeout(() => this.view.scrollToBottom(), 1);
       }
     },
 
     focusMessageField() {
+      if (this.panels && this.panels.length) {
+        return;
+      }
+
       this.$messageField.focus();
     },
 
@@ -780,12 +850,11 @@
         this.view.$el.scrollTop(newScrollPosition);
       }, 1);
     },
-
     fetchMessages() {
-      console.log('fetchMessages');
+      window.log.info('fetchMessages');
       this.$('.bar-container').show();
       if (this.inProgressFetch) {
-        console.log('Multiple fetchMessage calls!');
+        window.log.warn('Multiple fetchMessage calls!');
       }
 
       // Avoiding await, since we want to capture the promise and make it available via
@@ -794,15 +863,20 @@
       this.inProgressFetch = this.model
         .fetchContacts()
         .then(() => this.model.fetchMessages())
-        .then(() => {
+        .then(async () => {
           this.$('.bar-container').hide();
-          this.model.messageCollection.where({ unread: 1 }).forEach(m => {
-            m.fetch();
-          });
+          await Promise.all(
+            this.model.messageCollection.where({ unread: 1 }).map(async m => {
+              const latest = await window.Signal.Data.getMessageById(m.id, {
+                Message: Whisper.Message,
+              });
+              m.merge(latest);
+            })
+          );
           this.inProgressFetch = null;
         })
         .catch(error => {
-          console.log(
+          window.log.error(
             'fetchMessages error:',
             error && error.stack ? error.stack : error
           );
@@ -815,6 +889,11 @@
     addMessage(message) {
       // This is debounced, so it won't hit the database too often.
       this.lazyUpdateVerified();
+
+      // We do this here because we don't want convo.messageCollection to have
+      //   anything in it unless it has an associated view. This is so, when we
+      //   fetch on open, it's clean.
+      this.model.addSingleMessage(message);
 
       if (message.isOutgoing()) {
         this.removeLastSeenIndicator();
@@ -971,6 +1050,7 @@
           model,
         });
         this.listenBack(view);
+        this.updateHeader();
       }
     },
 
@@ -988,7 +1068,11 @@
         message: i18n('deleteWarning'),
         okText: i18n('delete'),
         resolve: () => {
-          message.destroy();
+          window.Signal.Data.removeMessage(message.id, {
+            Message: Whisper.Message,
+          });
+          message.trigger('unload');
+          this.model.messageCollection.remove(message.id);
           this.resetPanel();
           this.updateHeader();
         },
@@ -1124,10 +1208,17 @@
     async destroyMessages() {
       try {
         await this.confirm(i18n('deleteConversationConfirmation'));
-        await this.model.destroyMessages();
-        this.remove();
+        try {
+          await this.model.destroyMessages();
+          this.remove();
+        } catch (error) {
+          window.log.error(
+            'destroyMessages: Failed to successfully delete conversation',
+            error && error.stack ? error.stack : error
+          );
+        }
       } catch (error) {
-        // nothing to see here
+        // nothing to see here, user canceled out of dialog
       }
     },
 
@@ -1191,7 +1282,7 @@
         this.showSendConfirmationDialog(e, contacts);
       } catch (error) {
         this.focusMessageFieldAndClearDisabled();
-        console.log(
+        window.log.error(
           'checkUnverifiedSendMessage error:',
           error && error.stack ? error.stack : error
         );
@@ -1217,7 +1308,7 @@
         this.showSendConfirmationDialog(e, contacts);
       } catch (error) {
         this.focusMessageFieldAndClearDisabled();
-        console.log(
+        window.log.error(
           'checkUntrustedSendMessage error:',
           error && error.stack ? error.stack : error
         );
@@ -1350,7 +1441,7 @@
       }
 
       if (toast) {
-        toast.$el.insertAfter(this.$el);
+        toast.$el.appendTo(this.$el);
         toast.render();
         this.focusMessageFieldAndClearDisabled();
         return;
@@ -1366,7 +1457,7 @@
 
         const attachments = await this.fileInput.getFiles();
         const sendDelta = Date.now() - this.sendStart;
-        console.log('Send pre-checks took', sendDelta, 'milliseconds');
+        window.log.info('Send pre-checks took', sendDelta, 'milliseconds');
 
         this.model.sendMessage(message, attachments, this.quote);
 
@@ -1376,7 +1467,7 @@
         this.forceUpdateMessageFieldSize(e);
         this.fileInput.deleteFiles();
       } catch (error) {
-        console.log(
+        window.log.error(
           'Error pulling attached files before send',
           error && error.stack ? error.stack : error
         );

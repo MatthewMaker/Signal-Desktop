@@ -19,7 +19,6 @@
   window.Whisper = window.Whisper || {};
 
   const { Util } = window.Signal;
-  const { GoogleChrome } = Util;
   const {
     Conversation,
     Contact,
@@ -116,50 +115,69 @@
 
       const debouncedUpdateLastMessage = _.debounce(
         this.updateLastMessage.bind(this),
-        1000
+        200
       );
       this.listenTo(
         this.messageCollection,
-        'add remove',
+        'add remove destroy',
         debouncedUpdateLastMessage
       );
-      this.listenTo(this.model, 'newmessage', debouncedUpdateLastMessage);
+      this.listenTo(this.messageCollection, 'sent', this.updateLastMessage);
+      this.listenTo(
+        this.messageCollection,
+        'send-error',
+        this.updateLastMessage
+      );
 
+      this.on('newmessage', this.updateLastMessage);
       this.on('change:avatar', this.updateAvatarUrl);
       this.on('change:profileAvatar', this.updateAvatarUrl);
       this.on('change:profileKey', this.onChangeProfileKey);
       this.on('destroy', this.revokeAvatarUrl);
 
       // Listening for out-of-band data updates
-      this.on('newmessage', this.addSingleMessage);
-      this.on('delivered', this.updateMessage);
-      this.on('read', this.updateMessage);
-      this.on('sent', this.updateLastMessage);
+      this.on('delivered', this.updateAndMerge);
+      this.on('read', this.updateAndMerge);
+      this.on('expiration-change', this.updateAndMerge);
       this.on('expired', this.onExpired);
-      this.listenTo(
-        this.messageCollection,
-        'expired',
-        this.onExpiredCollection
-      );
     },
 
     isMe() {
       return this.id === this.ourNumber;
     },
 
-    onExpired(message) {
-      const mine = this.messageCollection.get(message.id);
-      if (mine && mine.cid !== message.cid) {
-        mine.trigger('expired', mine);
-      }
+    async updateAndMerge(message) {
+      this.updateLastMessage();
+
+      const mergeMessage = () => {
+        const existing = this.messageCollection.get(message.id);
+        if (!existing) {
+          return;
+        }
+
+        existing.merge(message.attributes);
+      };
+
+      await this.inProgressFetch;
+      mergeMessage();
     },
 
-    async onExpiredCollection(message) {
+    async onExpired(message) {
+      this.updateLastMessage();
+
       const removeMessage = () => {
-        console.log('Remove expired message from collection', {
-          sentAt: message.get('sent_at'),
+        const { id } = message;
+        const existing = this.messageCollection.get(id);
+        if (!existing) {
+          return;
+        }
+
+        window.log.info('Remove expired message from collection', {
+          sentAt: existing.get('sent_at'),
         });
-        this.messageCollection.remove(message.id);
+
+        this.messageCollection.remove(id);
+        existing.trigger('expired');
       };
 
       // If a fetch is in progress, then we need to wait until that's complete to
@@ -170,17 +188,9 @@
       removeMessage();
     },
 
-    // Used to update existing messages when updated from out-of-band db access,
-    //   like read and delivery receipts.
-    updateMessage(message) {
-      this.updateLastMessage();
-      this.messageCollection.add(message, { merge: true });
-    },
-
     addSingleMessage(message) {
       const model = this.messageCollection.add(message, { merge: true });
       model.setToExpire();
-      this.processQuotes(this.messageCollection);
       return model;
     },
 
@@ -207,12 +217,12 @@
         ...this.format(),
 
         lastUpdated: this.get('timestamp'),
-        hasUnread: Boolean(this.get('unreadCount')),
+        unreadCount: this.get('unreadCount') || 0,
         isSelected: this.isSelected,
 
         lastMessage: {
-          status: this.get('lastMessageStatus'),
-          text: this.get('lastMessage'),
+          status: this.lastMessageStatus,
+          text: this.lastMessage,
         },
 
         onClick: () => this.trigger('select', this),
@@ -320,7 +330,7 @@
             (beginningVerified !== verified && verified !== UNVERIFIED) ||
             (keychange && verified === VERIFIED)
           ) {
-            return this.addVerifiedChange(this.id, verified === VERIFIED, {
+            this.addVerifiedChange(this.id, verified === VERIFIED, {
               local: !options.viaSyncMessage,
             });
           }
@@ -347,7 +357,7 @@
             return lookup;
           })
           .catch(error => {
-            console.log(
+            window.log.error(
               'getIdentityKeys error for conversation',
               this.idForLogging(),
               error && error.stack ? error.stack : error
@@ -361,7 +371,7 @@
             lookup[contact.id] = key;
           },
           error => {
-            console.log(
+            window.log.error(
               'getIdentityKeys error for group member',
               contact.idForLogging(),
               error && error.stack ? error.stack : error
@@ -371,90 +381,6 @@
       );
 
       return Promise.all(promises).then(() => lookup);
-    },
-    replay(error, message) {
-      const replayable = new textsecure.ReplayableError(error);
-      return replayable.replay(message.attributes).catch(e => {
-        console.log('replay error:', e && e.stack ? e.stack : e);
-      });
-    },
-    decryptOldIncomingKeyErrors() {
-      // We want to run just once per conversation
-      if (this.get('decryptedOldIncomingKeyErrors')) {
-        return Promise.resolve();
-      }
-      console.log('decryptOldIncomingKeyErrors start for', this.idForLogging());
-
-      const messages = this.messageCollection.filter(message => {
-        const errors = message.get('errors');
-        if (!errors || !errors[0]) {
-          return false;
-        }
-        const error = _.find(
-          errors,
-          e => e.name === 'IncomingIdentityKeyError'
-        );
-
-        return Boolean(error);
-      });
-
-      const markComplete = () => {
-        console.log(
-          'decryptOldIncomingKeyErrors complete for',
-          this.idForLogging()
-        );
-        return new Promise(resolve => {
-          this.save({ decryptedOldIncomingKeyErrors: true }).always(resolve);
-        });
-      };
-
-      if (!messages.length) {
-        return markComplete();
-      }
-
-      console.log(
-        'decryptOldIncomingKeyErrors found',
-        messages.length,
-        'messages to process'
-      );
-      const safeDelete = message =>
-        new Promise(resolve => {
-          message.destroy().always(resolve);
-        });
-
-      const promise = this.getIdentityKeys();
-      return promise
-        .then(lookup =>
-          Promise.all(
-            _.map(messages, message => {
-              const source = message.get('source');
-              const error = _.find(
-                message.get('errors'),
-                e => e.name === 'IncomingIdentityKeyError'
-              );
-
-              const key = lookup[source];
-              if (!key) {
-                return Promise.resolve();
-              }
-
-              if (constantTimeEqualArrayBuffers(key, error.identityKey)) {
-                return this.replay(error, message).then(() =>
-                  safeDelete(message)
-                );
-              }
-
-              return Promise.resolve();
-            })
-          )
-        )
-        .catch(error => {
-          console.log(
-            'decryptOldIncomingKeyErrors error:',
-            error && error.stack ? error.stack : error
-          );
-        })
-        .then(markComplete);
     },
     isVerified() {
       if (this.isPrivate()) {
@@ -582,31 +508,42 @@
       return this.setVerified();
     },
 
-    addKeyChange(id) {
-      console.log(
+    async addKeyChange(keyChangedId) {
+      window.log.info(
         'adding key change advisory for',
         this.idForLogging(),
-        id,
+        keyChangedId,
         this.get('timestamp')
       );
 
       const timestamp = Date.now();
-      const message = new Whisper.Message({
+      const message = {
         conversationId: this.id,
         type: 'keychange',
         sent_at: this.get('timestamp'),
         received_at: timestamp,
-        key_changed: id,
+        key_changed: keyChangedId,
         unread: 1,
+      };
+
+      const id = await window.Signal.Data.saveMessage(message, {
+        Message: Whisper.Message,
       });
-      message.save().then(this.trigger.bind(this, 'newmessage', message));
+
+      this.trigger(
+        'newmessage',
+        new Whisper.Message({
+          ...message,
+          id,
+        })
+      );
     },
-    addVerifiedChange(id, verified, providedOptions) {
+    async addVerifiedChange(verifiedChangeId, verified, providedOptions) {
       const options = providedOptions || {};
       _.defaults(options, { local: true });
 
       if (this.isMe()) {
-        console.log(
+        window.log.info(
           'refusing to add verified change advisory for our own number'
         );
         return;
@@ -614,25 +551,36 @@
 
       const lastMessage = this.get('timestamp') || Date.now();
 
-      console.log(
+      window.log.info(
         'adding verified change advisory for',
         this.idForLogging(),
-        id,
+        verifiedChangeId,
         lastMessage
       );
 
       const timestamp = Date.now();
-      const message = new Whisper.Message({
+      const message = {
         conversationId: this.id,
         type: 'verified-change',
         sent_at: lastMessage,
         received_at: timestamp,
-        verifiedChanged: id,
+        verifiedChanged: verifiedChangeId,
         verified,
         local: options.local,
         unread: 1,
+      };
+
+      const id = await window.Signal.Data.saveMessage(message, {
+        Message: Whisper.Message,
       });
-      message.save().then(this.trigger.bind(this, 'newmessage', message));
+
+      this.trigger(
+        'newmessage',
+        new Whisper.Message({
+          ...message,
+          id,
+        })
+      );
 
       if (this.isPrivate()) {
         ConversationController.getAllGroupsInvolvingId(id).then(groups => {
@@ -643,9 +591,13 @@
       }
     },
 
-    onReadMessage(message, readAt) {
-      if (this.messageCollection.get(message.id)) {
-        this.messageCollection.get(message.id).fetch();
+    async onReadMessage(message, readAt) {
+      const existing = this.messageCollection.get(message.id);
+      if (existing) {
+        const fetched = await window.Signal.Data.getMessageById(existing.id, {
+          Message: Whisper.Message,
+        });
+        existing.merge(fetched);
       }
 
       // We mark as read everything older than this message - to clean up old stuff
@@ -668,22 +620,9 @@
     },
 
     getUnread() {
-      const conversationId = this.id;
-      const unreadMessages = new Whisper.MessageCollection();
-      return new Promise(resolve =>
-        unreadMessages
-          .fetch({
-            index: {
-              // 'unread' index
-              name: 'unread',
-              lower: [conversationId],
-              upper: [conversationId, Number.MAX_VALUE],
-            },
-          })
-          .always(() => {
-            resolve(unreadMessages);
-          })
-      );
+      return window.Signal.Data.getUnreadByConversation(this.id, {
+        MessageCollection: Whisper.MessageCollection,
+      });
     },
 
     validate(attributes) {
@@ -795,7 +734,9 @@
 
             return {
               contentType,
-              fileName,
+              // Our protos library complains about this field being undefined, so we
+              //   force it to null
+              fileName: fileName || null,
               thumbnail: thumbnail
                 ? {
                     ...(await loadAttachmentData(thumbnail)),
@@ -821,7 +762,7 @@
       this.queueJob(async () => {
         const now = Date.now();
 
-        console.log(
+        window.log.info(
           'Sending message to conversation',
           this.idForLogging(),
           'with timestamp',
@@ -839,19 +780,35 @@
           expireTimer,
           recipients,
         });
+
         const message = this.addSingleMessage(messageWithSchema);
-
-        if (this.isPrivate()) {
-          message.set({ destination });
-        }
-        message.save();
-
         this.save({
           active_at: now,
           timestamp: now,
           lastMessage: message.getNotificationText(),
           lastMessageStatus: 'sending',
         });
+
+        if (this.isPrivate()) {
+          message.set({ destination });
+        }
+
+        const id = await window.Signal.Data.saveMessage(message.attributes, {
+          Message: Whisper.Message,
+        });
+        message.set({ id });
+
+        // We're offline!
+        if (!textsecure.messaging) {
+          const errors = this.contactCollection.map(contact => {
+            const error = new Error('Network is not available');
+            error.name = 'SendMessageNetworkError';
+            error.number = contact.id;
+            return error;
+          });
+          await message.saveErrors(errors);
+          return;
+        }
 
         const conversationType = this.get('type');
         const sendFunction = (() => {
@@ -885,32 +842,53 @@
     },
 
     async updateLastMessage() {
-      const collection = new Whisper.MessageCollection();
-      await collection.fetchConversation(this.id, 1);
-      const lastMessage = collection.at(0);
+      if (!this.id) {
+        return;
+      }
 
-      const lastMessageJSON = lastMessage ? lastMessage.toJSON() : null;
-      const lastMessageStatus = lastMessage
-        ? lastMessage.getMessagePropStatus()
+      const messages = await window.Signal.Data.getMessagesByConversation(
+        this.id,
+        { limit: 1, MessageCollection: Whisper.MessageCollection }
+      );
+
+      const lastMessageModel = messages.at(0);
+      const lastMessageJSON = lastMessageModel
+        ? lastMessageModel.toJSON()
+        : null;
+      const lastMessageStatusModel = lastMessageModel
+        ? lastMessageModel.getMessagePropStatus()
         : null;
       const lastMessageUpdate = Conversation.createLastMessageUpdate({
         currentLastMessageText: this.get('lastMessage') || null,
         currentTimestamp: this.get('timestamp') || null,
         lastMessage: lastMessageJSON,
-        lastMessageStatus,
-        lastMessageNotificationText: lastMessage
-          ? lastMessage.getNotificationText()
+        lastMessageStatus: lastMessageStatusModel,
+        lastMessageNotificationText: lastMessageModel
+          ? lastMessageModel.getNotificationText()
           : null,
       });
 
+      let hasChanged = false;
+      const { lastMessage, lastMessageStatus } = lastMessageUpdate;
+      lastMessageUpdate.lastMessage = null;
+      lastMessageUpdate.lastMessageStatus = null;
+
+      hasChanged = hasChanged || lastMessage !== this.lastMessage;
+      this.lastMessage = lastMessage;
+
+      hasChanged = hasChanged || lastMessageStatus !== this.lastMessageStatus;
+      this.lastMessageStatus = lastMessageStatus;
+
       this.set(lastMessageUpdate);
 
-      if (this.hasChanged('lastMessage') || this.hasChanged('timestamp')) {
+      if (this.hasChanged()) {
         this.save();
+      } else if (hasChanged) {
+        this.trigger('change');
       }
     },
 
-    updateExpirationTimer(
+    async updateExpirationTimer(
       providedExpireTimer,
       providedSource,
       receivedAt,
@@ -931,7 +909,7 @@
         return Promise.resolve();
       }
 
-      console.log("Update conversation 'expireTimer'", {
+      window.log.info("Update conversation 'expireTimer'", {
         id: this.idForLogging(),
         expireTimer,
         source,
@@ -942,6 +920,8 @@
       // When we add a disappearing messages notification to the conversation, we want it
       //   to be above the message that initiated that change, hence the subtraction.
       const timestamp = (receivedAt || Date.now()) - 1;
+
+      await wrapDeferred(this.save({ expireTimer }));
 
       const message = this.messageCollection.add({
         // Even though this isn't reflected to the user, we want to place the last seen
@@ -966,44 +946,46 @@
         message.set({ recipients: this.getRecipients() });
       }
 
-      return Promise.all([
-        wrapDeferred(message.save()),
-        wrapDeferred(this.save({ expireTimer })),
-      ]).then(() => {
-        // if change was made remotely, don't send it to the number/group
-        if (receivedAt) {
-          return message;
-        }
-
-        let sendFunc;
-        if (this.get('type') === 'private') {
-          sendFunc = textsecure.messaging.sendExpirationTimerUpdateToNumber;
-        } else {
-          sendFunc = textsecure.messaging.sendExpirationTimerUpdateToGroup;
-        }
-        let profileKey;
-        if (this.get('profileSharing')) {
-          profileKey = storage.get('profileKey');
-        }
-        const promise = sendFunc(
-          this.get('id'),
-          this.get('expireTimer'),
-          message.get('sent_at'),
-          profileKey
-        );
-
-        return message.send(promise).then(() => message);
+      const id = await window.Signal.Data.saveMessage(message.attributes, {
+        Message: Whisper.Message,
       });
+      message.set({ id });
+
+      // if change was made remotely, don't send it to the number/group
+      if (receivedAt) {
+        return message;
+      }
+
+      let sendFunc;
+      if (this.get('type') === 'private') {
+        sendFunc = textsecure.messaging.sendExpirationTimerUpdateToNumber;
+      } else {
+        sendFunc = textsecure.messaging.sendExpirationTimerUpdateToGroup;
+      }
+      let profileKey;
+      if (this.get('profileSharing')) {
+        profileKey = storage.get('profileKey');
+      }
+      const promise = sendFunc(
+        this.get('id'),
+        this.get('expireTimer'),
+        message.get('sent_at'),
+        profileKey
+      );
+
+      await message.send(promise);
+
+      return message;
     },
 
     isSearchable() {
       return !this.get('left') || !!this.get('lastMessage');
     },
 
-    endSession() {
+    async endSession() {
       if (this.isPrivate()) {
         const now = Date.now();
-        const message = this.messageCollection.create({
+        const message = this.messageCollection.add({
           conversationId: this.id,
           type: 'outgoing',
           sent_at: now,
@@ -1012,11 +994,17 @@
           recipients: this.getRecipients(),
           flags: textsecure.protobuf.DataMessage.Flags.END_SESSION,
         });
+
+        const id = await window.Signal.Data.saveMessage(message.attributes, {
+          Message: Whisper.Message,
+        });
+        message.set({ id });
+
         message.send(textsecure.messaging.resetSession(this.id, now));
       }
     },
 
-    updateGroup(providedGroupUpdate) {
+    async updateGroup(providedGroupUpdate) {
       let groupUpdate = providedGroupUpdate;
 
       if (this.isPrivate()) {
@@ -1026,13 +1014,19 @@
         groupUpdate = this.pick(['name', 'avatar', 'members']);
       }
       const now = Date.now();
-      const message = this.messageCollection.create({
+      const message = this.messageCollection.add({
         conversationId: this.id,
         type: 'outgoing',
         sent_at: now,
         received_at: now,
         group_update: groupUpdate,
       });
+
+      const id = await window.Signal.Data.saveMessage(message.attributes, {
+        Message: Whisper.Message,
+      });
+      message.set({ id });
+
       message.send(
         textsecure.messaging.updateGroup(
           this.id,
@@ -1043,17 +1037,23 @@
       );
     },
 
-    leaveGroup() {
+    async leaveGroup() {
       const now = Date.now();
       if (this.get('type') === 'group') {
         this.save({ left: true });
-        const message = this.messageCollection.create({
+        const message = this.messageCollection.add({
           group_update: { left: 'You' },
           conversationId: this.id,
           type: 'outgoing',
           sent_at: now,
           received_at: now,
         });
+
+        const id = await window.Signal.Data.saveMessage(message.attributes, {
+          Message: Whisper.Message,
+        });
+        message.set({ id });
+
         message.send(textsecure.messaging.leaveGroup(this.id));
       }
     },
@@ -1083,7 +1083,7 @@
           if (this.messageCollection.get(m.id)) {
             m = this.messageCollection.get(m.id);
           } else {
-            console.log(
+            window.log.warn(
               'Marked a message as read in the database, but ' +
                 'it was not in messageCollection.'
             );
@@ -1115,7 +1115,7 @@
         read = read.filter(item => !item.hasErrors);
 
         if (read.length && options.sendReadReceipts) {
-          console.log('Sending', read.length, 'read receipts');
+          window.log.info('Sending', read.length, 'read receipts');
           promises.push(textsecure.messaging.syncReadMessages(read));
 
           if (storage.get('read-receipt-setting')) {
@@ -1171,7 +1171,7 @@
                 // save identity will close all sessions except for .1, so we
                 // must close that one manually.
                 const address = new libsignal.SignalProtocolAddress(id, 1);
-                console.log('closing session for', address.toString());
+                window.log.info('closing session for', address.toString());
                 const sessionCipher = new libsignal.SessionCipher(
                   textsecure.storage.protocol,
                   address
@@ -1195,7 +1195,7 @@
                 e => {
                   if (e.name === 'ProfileDecryptError') {
                     // probably the profile key has changed.
-                    console.log(
+                    window.log.error(
                       'decryptProfile error:',
                       id,
                       profile,
@@ -1207,7 +1207,7 @@
             });
         })
         .catch(error => {
-          console.log(
+          window.log.error(
             'getProfile error:',
             error && error.stack ? error.stack : error
           );
@@ -1273,241 +1273,6 @@
       });
     },
 
-    makeKey(author, id) {
-      return `${author}-${id}`;
-    },
-    doesMessageMatch(id, author, message) {
-      const messageAuthor = message.getContact().id;
-
-      if (author !== messageAuthor) {
-        return false;
-      }
-      if (id !== message.get('sent_at')) {
-        return false;
-      }
-      return true;
-    },
-    needData(attachments) {
-      if (!attachments || attachments.length === 0) {
-        return false;
-      }
-
-      const first = attachments[0];
-      const { thumbnail, contentType } = first;
-
-      return (
-        thumbnail ||
-        GoogleChrome.isImageTypeSupported(contentType) ||
-        GoogleChrome.isVideoTypeSupported(contentType)
-      );
-    },
-    forceRender(message) {
-      message.trigger('change', message);
-    },
-    makeMessagesLookup(messages) {
-      return messages.reduce((acc, message) => {
-        const { source, sent_at: sentAt } = message.attributes;
-
-        // Checking for notification messages (safety number change, timer change)
-        if (!source && message.isIncoming()) {
-          return acc;
-        }
-
-        const contact = message.getContact();
-        if (!contact) {
-          return acc;
-        }
-
-        const author = contact.id;
-        const key = this.makeKey(author, sentAt);
-
-        acc[key] = message;
-
-        return acc;
-      }, {});
-    },
-    async loadQuotedMessageFromDatabase(message) {
-      const { quote } = message.attributes;
-      const { attachments, id, author } = quote;
-      const first = attachments[0];
-
-      if (!first || message.quoteThumbnail) {
-        return false;
-      }
-
-      if (
-        !GoogleChrome.isImageTypeSupported(first.contentType) &&
-        !GoogleChrome.isVideoTypeSupported(first.contentType)
-      ) {
-        return false;
-      }
-
-      const collection = new Whisper.MessageCollection();
-      await collection.fetchSentAt(id);
-      const queryMessage = collection.find(m =>
-        this.doesMessageMatch(id, author, m)
-      );
-
-      if (!queryMessage) {
-        return false;
-      }
-
-      try {
-        if (
-          queryMessage.get('schemaVersion') < Message.CURRENT_SCHEMA_VERSION
-        ) {
-          const upgradedMessage = await upgradeMessageSchema(
-            queryMessage.attributes
-          );
-          queryMessage.set(upgradedMessage);
-          await wrapDeferred(message.save());
-        }
-      } catch (error) {
-        console.log(
-          'Problem upgrading message quoted message from database',
-          Errors.toLogFormat(error)
-        );
-        return false;
-      }
-
-      const queryAttachments = queryMessage.attachments || [];
-      if (queryAttachments.length === 0) {
-        return false;
-      }
-
-      const queryFirst = queryAttachments[0];
-      const { thumbnail } = queryFirst;
-
-      // eslint-disable-next-line no-param-reassign
-      message.quoteThumbnail = {
-        ...thumbnail,
-        objectUrl: getAbsoluteAttachmentPath(thumbnail.path),
-      };
-
-      return true;
-    },
-    loadQuotedMessage(message, quotedMessage) {
-      // eslint-disable-next-line no-param-reassign
-      message.quotedMessage = quotedMessage;
-
-      const { quote } = message.attributes;
-      const { attachments } = quote;
-      const first = attachments[0];
-
-      if (!first || message.quoteThumbnail) {
-        return;
-      }
-
-      if (
-        !GoogleChrome.isImageTypeSupported(first.contentType) &&
-        !GoogleChrome.isVideoTypeSupported(first.contentType)
-      ) {
-        return;
-      }
-
-      const quotedAttachments = quotedMessage.get('attachments') || [];
-      if (quotedAttachments.length === 0) {
-        return;
-      }
-
-      const queryFirst = quotedAttachments[0];
-      const { thumbnail } = queryFirst;
-
-      if (!thumbnail) {
-        return;
-      }
-
-      // eslint-disable-next-line no-param-reassign
-      message.quoteThumbnail = {
-        ...thumbnail,
-        objectUrl: getAbsoluteAttachmentPath(thumbnail.path),
-      };
-    },
-    loadQuoteThumbnail(message) {
-      const { quote } = message.attributes;
-      const { attachments } = quote;
-      const first = attachments[0];
-
-      if (!first || message.quoteThumbnail) {
-        return false;
-      }
-
-      const { thumbnail } = first;
-
-      if (!thumbnail) {
-        return false;
-      }
-      // If we update this data in place, there's the risk that this data could be
-      //   saved back to the database
-      // eslint-disable-next-line no-param-reassign
-      message.quoteThumbnail = {
-        ...thumbnail,
-        objectUrl: getAbsoluteAttachmentPath(thumbnail.path),
-      };
-
-      return true;
-    },
-    async processQuotes(messages) {
-      const lookup = this.makeMessagesLookup(messages);
-
-      const promises = messages.map(async message => {
-        const { quote } = message.attributes;
-        if (!quote) {
-          return;
-        }
-
-        // If we already have a quoted message, then we exit early. If we don't have it,
-        //   then we'll continue to look again for an in-memory message to use. Why? This
-        //   will enable us to scroll to it when the user clicks.
-        if (message.quotedMessage) {
-          return;
-        }
-
-        // 1. Load provided thumbnail
-        const gotThumbnail = this.loadQuoteThumbnail(message, quote);
-
-        // 2. Check to see if we've already loaded the target message into memory
-        const { author, id } = quote;
-        const key = this.makeKey(author, id);
-        const quotedMessage = lookup[key];
-
-        if (quotedMessage) {
-          this.loadQuotedMessage(message, quotedMessage);
-          this.forceRender(message);
-          return;
-        }
-
-        // Even if we got the thumbnail locall, we wanted to populate the referenced
-        //   message so a click can navigate to it.
-        if (gotThumbnail) {
-          this.forceRender(message);
-          return;
-        }
-
-        // We only go further if we need more data for this message. It's always important
-        //   to grab the quoted message to allow for navigating to it by clicking.
-        const { attachments } = quote;
-        if (!this.needData(attachments)) {
-          return;
-        }
-
-        // We've don't want to go to the database or load thumbnails a second time.
-        if (message.quoteIsProcessed) {
-          return;
-        }
-        // eslint-disable-next-line no-param-reassign
-        message.quoteIsProcessed = true;
-
-        // 3. As a last resort, go to the database to generate a thumbnail on-demand
-        const loaded = await this.loadQuotedMessageFromDatabase(message, id);
-        if (loaded) {
-          this.forceRender(message);
-        }
-      });
-
-      return Promise.all(promises);
-    },
-
     async upgradeMessages(messages) {
       for (let max = messages.length, i = 0; i < max; i += 1) {
         const message = messages.at(i);
@@ -1520,7 +1285,9 @@
           const upgradedMessage = await upgradeMessageSchema(attributes);
           message.set(upgradedMessage);
           // eslint-disable-next-line no-await-in-loop
-          await wrapDeferred(message.save());
+          await window.Signal.Data.saveMessage(upgradedMessage, {
+            Message: Whisper.Message,
+          });
         }
       }
     },
@@ -1530,13 +1297,13 @@
         throw new Error('This conversation has no id!');
       }
       if (this.inProgressFetch) {
-        console.log('Attempting to start a parallel fetchMessages() call');
+        window.log.warn('Attempting to start a parallel fetchMessages() call');
         return;
       }
 
       this.inProgressFetch = this.messageCollection.fetchConversation(
         this.id,
-        null,
+        undefined,
         this.get('unreadCount')
       );
 
@@ -1548,15 +1315,11 @@
         //   one-time hit. We do this so we have guarantees about message structure.
         await this.upgradeMessages(this.messageCollection);
       } catch (error) {
-        console.log(
+        window.log.error(
           'fetchMessages: failed to upgrade messages',
           Errors.toLogFormat(error)
         );
       }
-
-      // We kick this process off, but don't wait for it. If async updates happen on a
-      //   given Message, 'change' will be triggered
-      this.processQuotes(this.messageCollection);
 
       this.inProgressFetch = null;
     },
@@ -1588,29 +1351,11 @@
     },
 
     async destroyMessages() {
-      let loaded;
-      do {
-        // Yes, we really want the await in the loop. We're deleting 100 at a
-        //   time so we don't use too much memory.
-        // eslint-disable-next-line no-await-in-loop
-        await wrapDeferred(
-          this.messageCollection.fetch({
-            limit: 100,
-            index: {
-              // 'conversation' index on [conversationId, received_at]
-              name: 'conversation',
-              lower: [this.id],
-              upper: [this.id, Number.MAX_VALUE],
-            },
-          })
-        );
+      await window.Signal.Data.removeAllMessagesInConversation(this.id, {
+        MessageCollection: Whisper.MessageCollection,
+      });
 
-        loaded = this.messageCollection.models;
-        this.messageCollection.reset([]);
-        _.each(loaded, message => {
-          message.destroy();
-        });
-      } while (loaded.length > 0);
+      this.messageCollection.reset([]);
 
       this.save({
         lastMessage: null,
@@ -1756,7 +1501,7 @@
           const messageId = message.id;
           const isExpiringMessage = Message.hasExpiration(messageJSON);
 
-          console.log('Add notification', {
+          window.log.info('Add notification', {
             conversationId: this.idForLogging(),
             isExpiringMessage,
             messageSentAt,
@@ -1764,7 +1509,6 @@
           Whisper.Notifications.add({
             conversationId,
             iconUrl,
-            imageUrl: message.getImageUrl(),
             isExpiringMessage,
             message: message.getNotificationText(),
             messageId,
@@ -1805,15 +1549,7 @@
 
     destroyAll() {
       return Promise.all(
-        this.models.map(
-          m =>
-            new Promise((resolve, reject) => {
-              m
-                .destroy()
-                .then(resolve)
-                .fail(reject);
-            })
-        )
+        this.models.map(conversation => wrapDeferred(conversation.destroy()))
       );
     },
 

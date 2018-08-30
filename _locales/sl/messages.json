@@ -101,6 +101,16 @@
         "message": "Uspeh!",
         "description": "Header shown on the screen at the end of a successful import process"
     },
+    "minutesAgoShort": {
+        "message": "$minutes$ min",
+        "description": "Even further contracted form of 'X minutes ago' which works both for singular and plural, used in the left pane",
+        "placeholders": {
+            "minutes": {
+                "content": "$1",
+                "example": "10"
+            }
+        }
+    },
     "timestamp_m": {
         "message": "1 minuto",
         "description": "Brief timestamp for messages sent about one minute ago. Displayed in the conversation list and message bubble."
@@ -211,6 +221,10 @@
         "message": "Preverite svojo internetno povezavo",
         "description": "Obvious instructions for when a user's computer loses its network connection"
     },
+    "youDisabledDisappearingMessages": {
+        "message": "Izključili ste izginjajoča sporočila",
+        "description": "Displayed in the conversation list when the timer is turned off"
+    },
     "notificationSettingsDialog": {
         "message": "Vsebina obvestila o prejemu sporočila:",
         "description": "Explain the purpose of the notification settings"
@@ -283,6 +297,16 @@
         "message": "telefon",
         "description": "Generic label shown if contact phone has custom type but no label"
     },
+    "hoursAgoShort": {
+        "message": "$hours$ ur",
+        "description": "Even further contracted form of 'X hours ago' which works both for singular and plural, used in the left pane",
+        "placeholders": {
+            "hours": {
+                "content": "$1",
+                "example": "2"
+            }
+        }
+    },
     "deleteThisMessage": {
         "message": "Izbriši to sporočilo",
         "description": ""
@@ -316,6 +340,10 @@
     "importingHeader": {
         "message": "Nalagam stike in sporočila",
         "description": "Header of screen shown as data is import"
+    },
+    "spellCheckDescription": {
+        "message": "Vklop črkovalnika v okencu za vnašanje teksta sporočila",
+        "description": "Description of the media permission description"
     },
     "theyChangedTheTimer": {
         "message": "Uporabnik $name$ je nastavil odštevanje za izginjajoča števila na $time$",
@@ -581,6 +609,10 @@
         "message": "Nastavi z uvozom podatkov",
         "description": "When the application is not yet set up, menu option to start up the import sequence"
     },
+    "disappearingMessagesDisabled": {
+        "message": "Izginjajoča sporočila so izključena",
+        "description": "Displayed in the left pane when the timer is turned off"
+    },
     "videoScreenshotFailedToLoad": {
         "message": "Zajem slike videa se ni uspel naložiti",
         "description": "When a attachment video screenshot is missing, this message is shown"
@@ -659,6 +691,10 @@
         "message": "Skrij podrobnosti",
         "description": "Hides the details of a key change"
     },
+    "spellCheck": {
+        "message": "Črkovalnik",
+        "description": "Description of the media permission description"
+    },
     "theme": {
         "message": "Tema",
         "description": "Header for theme settings"
@@ -670,6 +706,16 @@
     "newIdentity": {
         "message": "Novo varnostno število",
         "description": "Header for a key change dialog"
+    },
+    "disabledDisappearingMessages": {
+        "message": "Uporabnik $name$ je izključil izginjajoča sporočila",
+        "description": "Displayed in the conversation list when the timer is turned off",
+        "placeholders": {
+            "name": {
+                "content": "$1",
+                "example": "John"
+            }
+        }
     },
     "installTagline": {
         "message": "Zasebnost obstaja. Signal jo naredi preprosto.",
@@ -910,7 +956,7 @@
         "description": "Alt text for button to take user down to bottom of conversation with a new message out of screen"
     },
     "hoursAgo": {
-        "message": "Pred $hours$ hr",
+        "message": "Pred $hours$ urami",
         "description": "Contracted form of 'X hours ago' which works both for singular and plural",
         "placeholders": {
             "hours": {
@@ -1020,6 +1066,10 @@
     "timerOption_5_seconds": {
         "message": "5 sekund",
         "description": "Label for a selectable option in the message expiration timer menu"
+    },
+    "debugLogError": {
+        "message": "Prišlo je do težav pri prenosu! Morda bi želeli priložiti sistemsko zabeležbo prijavi hrošča razvijalcem.",
+        "description": ""
     },
     "viewMenuToggleDevTools": {
         "message": "Vklopi razvijalska orodja",
@@ -1273,7 +1323,7 @@
     },
     "timerSetTo": {
         "message": "Čas izginjanja je nastavljen na $time$",
-        "description": "Displayed in the conversation list when the timer is updated by some automatic action.",
+        "description": "Displayed in the conversation list when the timer is updated by some automatic action, or in the left pane",
         "placeholders": {
             "time": {
                 "content": "$1",

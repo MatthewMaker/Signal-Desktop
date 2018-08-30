@@ -80,7 +80,7 @@
         }
     },
     "youChangedTheTimer": {
-        "message": "Sinä asetit viestien katoamisajaksi: $time$",
+        "message": "Sinä asetit viestien katoamisajan: $time$",
         "description": "Message displayed when you change the message expiration timer in a conversation.",
         "placeholders": {
             "time": {
@@ -100,6 +100,16 @@
     "importCompleteHeader": {
         "message": "Onnistui!",
         "description": "Header shown on the screen at the end of a successful import process"
+    },
+    "minutesAgoShort": {
+        "message": "$minutes$ min",
+        "description": "Even further contracted form of 'X minutes ago' which works both for singular and plural, used in the left pane",
+        "placeholders": {
+            "minutes": {
+                "content": "$1",
+                "example": "10"
+            }
+        }
     },
     "timestamp_m": {
         "message": "1 minuutti",
@@ -211,6 +221,10 @@
         "message": "Tarkista vekkoyhteytesi",
         "description": "Obvious instructions for when a user's computer loses its network connection"
     },
+    "youDisabledDisappearingMessages": {
+        "message": "Sinä asetit katoavat viestit pois päältä",
+        "description": "Displayed in the conversation list when the timer is turned off"
+    },
     "notificationSettingsDialog": {
         "message": "Näytä saapuneiden viestien ilmoituksissa:",
         "description": "Explain the purpose of the notification settings"
@@ -220,7 +234,7 @@
         "description": "Brief timestamp for messages sent about one hour ago. Displayed in the conversation list and message bubble."
     },
     "timerOption_0_seconds_abbreviated": {
-        "message": "poissa päältä",
+        "message": "pois päältä",
         "description": "Short format indicating current timer setting in the conversation list snippet"
     },
     "imageFailedToLoad": {
@@ -283,6 +297,16 @@
         "message": "puhelin",
         "description": "Generic label shown if contact phone has custom type but no label"
     },
+    "hoursAgoShort": {
+        "message": "$hours$ h",
+        "description": "Even further contracted form of 'X hours ago' which works both for singular and plural, used in the left pane",
+        "placeholders": {
+            "hours": {
+                "content": "$1",
+                "example": "2"
+            }
+        }
+    },
     "deleteThisMessage": {
         "message": "Poista tämä viesti",
         "description": ""
@@ -317,8 +341,12 @@
         "message": "Ladataan yhteystietoja ja viestejä ",
         "description": "Header of screen shown as data is import"
     },
+    "spellCheckDescription": {
+        "message": "Ota käyttöön viestilaatikkoon kirjoitetun tekstin oikeinkirjoituksen tarkistus",
+        "description": "Description of the media permission description"
+    },
     "theyChangedTheTimer": {
-        "message": "$name$ asetti viestien katoamisajaksi: $time$",
+        "message": "$name$ asetti viestien katoamisajan: $time$",
         "description": "Message displayed when someone else changes the message expiration timer in a conversation.",
         "placeholders": {
             "name": {
@@ -581,6 +609,10 @@
         "message": "Asenna tuoduilla tiedoilla",
         "description": "When the application is not yet set up, menu option to start up the import sequence"
     },
+    "disappearingMessagesDisabled": {
+        "message": "Katoavat viestit poistettu käytöstä",
+        "description": "Displayed in the left pane when the timer is turned off"
+    },
     "videoScreenshotFailedToLoad": {
         "message": "Videon pikkukuvan lataaminen epäonnistui",
         "description": "When a attachment video screenshot is missing, this message is shown"
@@ -642,7 +674,7 @@
         "description": "Displayed in notifications when setting is 'name and message' and more than one message is waiting"
     },
     "yourSafetyNumberWith": {
-        "message": "Turvanumerosi yhteystiedon$name$ kanssa:",
+        "message": "Turvanumerosi yhteystiedon $name$ kanssa:",
         "description": "Heading for safety number view",
         "placeholders": {
             "name": {
@@ -659,6 +691,10 @@
         "message": "Piilota lisätiedot",
         "description": "Hides the details of a key change"
     },
+    "spellCheck": {
+        "message": "Oikeinkirjoituksen tarkistus",
+        "description": "Description of the media permission description"
+    },
     "theme": {
         "message": "Teema",
         "description": "Header for theme settings"
@@ -670,6 +706,16 @@
     "newIdentity": {
         "message": "Uusi turvanumero",
         "description": "Header for a key change dialog"
+    },
+    "disabledDisappearingMessages": {
+        "message": "$name$asetti katoavat viestit pois päältä",
+        "description": "Displayed in the conversation list when the timer is turned off",
+        "placeholders": {
+            "name": {
+                "content": "$1",
+                "example": "John"
+            }
+        }
     },
     "installTagline": {
         "message": "Yksityisyys on mahdollista. Signal tekee siitä helppoa.",
@@ -890,7 +936,7 @@
         "description": "Used in the media gallery documents tab to visually represent a file"
     },
     "timerOption_0_seconds": {
-        "message": "poissa päältä",
+        "message": "pois päältä",
         "description": "Label for option to turn off message expiration in the timer menu"
     },
     "editMenuRedo": {
@@ -1021,6 +1067,10 @@
         "message": "5 sekuntia",
         "description": "Label for a selectable option in the message expiration timer menu"
     },
+    "debugLogError": {
+        "message": "Jokin meni pieleen lataamisessa! Ole hyvä ja liitä virheenkorjausloki vikailmoitukseesi.",
+        "description": ""
+    },
     "viewMenuToggleDevTools": {
         "message": "Näytä/piilota kehittäjätyökalut",
         "description": "View menu command to show or hide the developer tools"
@@ -1074,7 +1124,7 @@
         "description": "Message shown on the loading screen before we've loaded any messages"
     },
     "audioPermissionNeeded": {
-        "message": "Lähettääksesi ääniviestejä, myönnä Signal Desktopille mikrofonin käyttöoikeus.",
+        "message": "Lähettääksesi ääniviestejä myönnä Signal Desktopille mikrofonin käyttöoikeus.",
         "description": "Shown if the user attempts to send an audio message without audio permssions turned on"
     },
     "newMessages": {
@@ -1273,7 +1323,7 @@
     },
     "timerSetTo": {
         "message": "Ajastin asetettu: $time$",
-        "description": "Displayed in the conversation list when the timer is updated by some automatic action.",
+        "description": "Displayed in the conversation list when the timer is updated by some automatic action, or in the left pane",
         "placeholders": {
             "time": {
                 "content": "$1",

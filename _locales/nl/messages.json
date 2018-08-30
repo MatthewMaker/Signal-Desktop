@@ -101,6 +101,16 @@
         "message": "Klaar!",
         "description": "Header shown on the screen at the end of a successful import process"
     },
+    "minutesAgoShort": {
+        "message": "$minutes$ min",
+        "description": "Even further contracted form of 'X minutes ago' which works both for singular and plural, used in the left pane",
+        "placeholders": {
+            "minutes": {
+                "content": "$1",
+                "example": "10"
+            }
+        }
+    },
     "timestamp_m": {
         "message": "1 minuut",
         "description": "Brief timestamp for messages sent about one minute ago. Displayed in the conversation list and message bubble."
@@ -211,6 +221,10 @@
         "message": "Controleer je netwerkverbinding.",
         "description": "Obvious instructions for when a user's computer loses its network connection"
     },
+    "youDisabledDisappearingMessages": {
+        "message": "You disabled disappearing messages",
+        "description": "Displayed in the conversation list when the timer is turned off"
+    },
     "notificationSettingsDialog": {
         "message": "Toon wanneer een bericht ontvangen wordt meldingen die het volgende weergeven:",
         "description": "Explain the purpose of the notification settings"
@@ -283,6 +297,16 @@
         "message": "telefoon",
         "description": "Generic label shown if contact phone has custom type but no label"
     },
+    "hoursAgoShort": {
+        "message": "$hours$ hr",
+        "description": "Even further contracted form of 'X hours ago' which works both for singular and plural, used in the left pane",
+        "placeholders": {
+            "hours": {
+                "content": "$1",
+                "example": "2"
+            }
+        }
+    },
     "deleteThisMessage": {
         "message": "Dit bericht verwijderen",
         "description": ""
@@ -316,6 +340,10 @@
     "importingHeader": {
         "message": "Contacten en berichten aan het laden",
         "description": "Header of screen shown as data is import"
+    },
+    "spellCheckDescription": {
+        "message": "Enable spell check of text entered in message composition box",
+        "description": "Description of the media permission description"
     },
     "theyChangedTheTimer": {
         "message": "$name$ set the disappearing message timer to $time$",
@@ -581,6 +609,10 @@
         "message": "Instellen met importeren",
         "description": "When the application is not yet set up, menu option to start up the import sequence"
     },
+    "disappearingMessagesDisabled": {
+        "message": "Disappearing messages disabled",
+        "description": "Displayed in the left pane when the timer is turned off"
+    },
     "videoScreenshotFailedToLoad": {
         "message": "Video screenshot failed to load",
         "description": "When a attachment video screenshot is missing, this message is shown"
@@ -659,6 +691,10 @@
         "message": "Details verbergen",
         "description": "Hides the details of a key change"
     },
+    "spellCheck": {
+        "message": "Spell Check",
+        "description": "Description of the media permission description"
+    },
     "theme": {
         "message": "Thema",
         "description": "Header for theme settings"
@@ -670,6 +706,16 @@
     "newIdentity": {
         "message": "Nieuw veiligheidsnummer",
         "description": "Header for a key change dialog"
+    },
+    "disabledDisappearingMessages": {
+        "message": "$name$ disabled disappearing messages",
+        "description": "Displayed in the conversation list when the timer is turned off",
+        "placeholders": {
+            "name": {
+                "content": "$1",
+                "example": "John"
+            }
+        }
     },
     "installTagline": {
         "message": "Privacy is mogelijk. Signal maakt het gemakkelijk.",
@@ -1021,6 +1067,10 @@
         "message": "5 seconden",
         "description": "Label for a selectable option in the message expiration timer menu"
     },
+    "debugLogError": {
+        "message": "Something went wrong with the upload! Please consider manually adding your log to the bug you file.",
+        "description": ""
+    },
     "viewMenuToggleDevTools": {
         "message": "Toggle Developer Tools",
         "description": "View menu command to show or hide the developer tools"
@@ -1273,7 +1323,7 @@
     },
     "timerSetTo": {
         "message": "Timer ingesteld op $time$",
-        "description": "Displayed in the conversation list when the timer is updated by some automatic action.",
+        "description": "Displayed in the conversation list when the timer is updated by some automatic action, or in the left pane",
         "placeholders": {
             "time": {
                 "content": "$1",

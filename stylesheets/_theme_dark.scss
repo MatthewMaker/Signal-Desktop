@@ -62,9 +62,10 @@ body.dark-theme {
   }
 
   .toast {
-    background: rgba(0, 0, 0, 0.75);
+    background-color: $color-light-60;
     color: $color-white;
-    box-shadow: 0 0 5px 0 black;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.12),
+      0 0 0 0.5px rgba(0, 0, 0, 0.08);
   }
 
   .confirmation-dialog {
@@ -155,7 +156,6 @@ body.dark-theme {
   }
 
   // _emoji
-
   .ep-emojies {
     background-color: $color-black;
   }
@@ -170,7 +170,34 @@ body.dark-theme {
     }
   }
 
+  .emoji-panel-container {
+    .ep ::-webkit-scrollbar-thumb {
+      background: $color-dark-55;
+
+      &:hover {
+        background: $color-dark-30;
+      }
+    }
+  }
+
   // _global
+
+  ::-webkit-scrollbar-track {
+    background: $color-black;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: $color-dark-55;
+    border: 2px solid $color-black;
+
+    &:hover {
+      background: $color-dark-30;
+    }
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: $color-black;
+  }
 
   .dark-overlay {
     background-color: $color-black;
@@ -253,7 +280,7 @@ body.dark-theme {
 
   .contact-details {
     .number {
-      color: $grey;
+      color: $color-dark-30;
     }
 
     .verified-icon {
@@ -431,11 +458,24 @@ body.dark-theme {
 
   .gutter {
     background-color: $color-dark-85;
+
+    ::-webkit-scrollbar-track {
+      background: $color-dark-85;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      border: 2px solid $color-dark-85;
+    }
   }
   .network-status-container {
     .network-status {
       background: url('../images/error_red.svg') no-repeat left 10px center;
+      background-size: 25px 25px;
       background-color: #fcd156;
+
+      .network-status-message {
+        color: $color-dark-85;
+      }
 
       .action {
         button {
@@ -621,9 +661,12 @@ body.dark-theme {
     background-color: $color-conversation-teal;
   }
 
-  .module-message__img-attachment {
-    border: 1px solid $color-white-02;
+  .module-message__attachment-container {
     background-color: $color-black;
+  }
+
+  .module-message__img-border-overlay {
+    box-shadow: inset 0px 0px 0px 1px rgba($color-dark-30, 0.25);
   }
 
   .module-message__img-overlay {
@@ -747,8 +790,8 @@ body.dark-theme {
 
   .module-message__send-message-button {
     color: $color-signal-blue;
-    background-color: $color-light-02;
-    border: 1px solid $color-black-012;
+    background-color: $color-dark-70;
+    border: 1px solid $color-dark-60;
   }
 
   .module-message__author-default-avatar--grey {
@@ -927,6 +970,10 @@ body.dark-theme {
 
   .module-quote__primary__text {
     color: $color-dark-05;
+
+    a {
+      color: $color-dark-05;
+    }
   }
 
   .module-quote__primary__type-label {
@@ -969,6 +1016,18 @@ body.dark-theme {
     color: $color-dark-05;
   }
 
+  .module-quote__reference-warning {
+    background-color: $color-black-06;
+  }
+
+  .module-quote__reference-warning__icon {
+    @include color-svg('../images/broken-link.svg', $color-dark-30);
+  }
+
+  .module-quote__reference-warning__text {
+    color: $color-dark-05;
+  }
+
   // Module: Embedded Contact
 
   .module-embedded-contact__image-container__default-avatar {
@@ -1008,8 +1067,12 @@ body.dark-theme {
     @include color-svg('../images/chat-bubble.svg', white);
   }
 
+  .module-contact-detail__additional-contact {
+    border-top: 1px solid $color-dark-70;
+  }
+
   .module-contact-detail__additional-contact__type {
-    color: rgba(0, 0, 0, 0.5);
+    color: $color-light-45;
   }
 
   // Module: Group Notification
@@ -1061,6 +1124,10 @@ body.dark-theme {
 
   .module-timer-notification__icon {
     @include color-svg('../images/timer.svg', $color-dark-30);
+  }
+
+  .module-timer-notification__icon--disabled {
+    @include color-svg('../images/timer-disabled.svg', $color-dark-30);
   }
 
   // Module: Contact List Item
@@ -1273,6 +1340,18 @@ body.dark-theme {
 
   .module-media-grid-item {
     background-color: $color-dark-85;
+  }
+
+  .module-media-grid-item__icon-image {
+    @include color-svg('../images/image.svg', $color-dark-60);
+  }
+
+  .module-media-grid-item__icon-video {
+    @include color-svg('../images/movie.svg', $color-dark-60);
+  }
+
+  .module-media-grid-item__icon-generic {
+    @include color-svg('../images/file.svg', $color-dark-60);
   }
 
   // Module: Empty State

@@ -38,7 +38,10 @@
       return storage.put(IMPORT_LOCATION, location);
     },
     reset() {
-      return Whisper.Database.clear();
+      return Promise.all([
+        Whisper.Database.clear(),
+        window.Signal.Data.removeAll(),
+      ]);
     },
   };
 
@@ -112,7 +115,7 @@
         },
         error => {
           if (error.name !== 'ChooseError') {
-            console.log(
+            window.log.error(
               'Error choosing directory:',
               error && error.stack ? error.stack : error
             );
@@ -158,7 +161,7 @@
           return this.finishLightImport(directory);
         })
         .catch(error => {
-          console.log(
+          window.log.error(
             'Error importing:',
             error && error.stack ? error.stack : error
           );

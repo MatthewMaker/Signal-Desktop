@@ -13,6 +13,7 @@
 
   const CheckboxView = Whisper.View.extend({
     initialize(options) {
+      this.name = options.name;
       this.setFn = options.setFn;
       this.value = options.value;
       this.populate();
@@ -23,7 +24,7 @@
     change(e) {
       const value = e.target.checked;
       this.setFn(value);
-      console.log(this.name, 'changed to', value);
+      window.log.info(this.name, 'changed to', value);
     },
     populate() {
       this.$('input').prop('checked', !!this.value);
@@ -42,7 +43,7 @@
     change(e) {
       this.value = e.target.checked;
       this.setFn(this.value);
-      console.log('media-permissions changed to', this.value);
+      window.log.info('media-permissions changed to', this.value);
     },
     populate() {
       this.$('input').prop('checked', Boolean(this.value));
@@ -62,7 +63,7 @@
     change(e) {
       const value = this.$(e.target).val();
       this.setFn(value);
-      console.log(this.name, 'changed to', value);
+      window.log.info(this.name, 'changed to', value);
     },
     populate() {
       this.$(`#${this.name}-${this.value}`).attr('checked', 'checked');
@@ -94,17 +95,20 @@
       if (Settings.isAudioNotificationSupported()) {
         new CheckboxView({
           el: this.$('.audio-notification-setting'),
+          name: 'audio-notification-setting',
           value: window.initialData.audioNotification,
           setFn: window.setAudioNotification,
         });
       }
       new CheckboxView({
         el: this.$('.spell-check-setting'),
+        name: 'spell-check-setting',
         value: window.initialData.spellCheck,
         setFn: window.setSpellCheck,
       });
       new CheckboxView({
         el: this.$('.menu-bar-setting'),
+        name: 'menu-bar-setting',
         value: window.initialData.hideMenuBar,
         setFn: window.setHideMenuBar,
       });
@@ -177,12 +181,12 @@
     onsuccess() {
       window.setLastSyncTime(Date.now());
       this.lastSyncTime = Date.now();
-      console.log('sync successful');
+      window.log.info('sync successful');
       this.enable();
       this.render();
     },
     ontimeout() {
-      console.log('sync timed out');
+      window.log.error('sync timed out');
       this.$('.synced_at').hide();
       this.$('.sync_failed').show();
       this.enable();
@@ -190,7 +194,7 @@
     async sync() {
       this.$('.sync_failed').hide();
       if (window.initialData.isPrimary) {
-        console.log('Tried to sync from device 1');
+        window.log.warn('Tried to sync from device 1');
         return;
       }
 

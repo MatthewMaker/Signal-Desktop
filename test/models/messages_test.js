@@ -1,16 +1,6 @@
 (function() {
   'use strict';
 
-  function deleteAllMessages() {
-    return new Promise(function(resolve, reject) {
-      var messages = new Whisper.MessageCollection();
-      return messages.fetch().then(function() {
-        messages.destroyAll();
-        resolve();
-      }, reject);
-    });
-  }
-
   var attributes = {
     type: 'outgoing',
     body: 'hi',
@@ -27,27 +17,13 @@
   var source = '+14155555555';
 
   describe('MessageCollection', function() {
-    before(function() {
-      return Promise.all([deleteAllMessages(), ConversationController.load()]);
+    before(async function() {
+      await clearDatabase();
+      ConversationController.reset();
+      await ConversationController.load();
     });
     after(function() {
-      return deleteAllMessages();
-    });
-
-    it('has no image url', function() {
-      var messages = new Whisper.MessageCollection();
-      var message = messages.add(attributes);
-      assert.isNull(message.getImageUrl());
-    });
-
-    it('updates image url', function() {
-      var messages = new Whisper.MessageCollection();
-      var message = messages.add({ attachments: [attachment] });
-
-      var firstUrl = message.getImageUrl();
-      message.updateImageUrl();
-      var secondUrl = message.getImageUrl();
-      assert.notEqual(secondUrl, firstUrl);
+      return clearDatabase();
     });
 
     it('gets outgoing contact', function() {
@@ -72,39 +48,6 @@
 
       var messages = new Whisper.MessageCollection();
       assert.strictEqual(messages.length, 0);
-    });
-
-    it('saves asynchronously', function(done) {
-      new Whisper.MessageCollection()
-        .add(attributes)
-        .save()
-        .then(done);
-    });
-
-    it('fetches persistent messages', function(done) {
-      var messages = new Whisper.MessageCollection();
-      assert.strictEqual(messages.length, 0);
-      messages.fetch().then(function() {
-        assert.notEqual(messages.length, 0);
-        var m = messages.at(0).attributes;
-        _.each(attributes, function(val, key) {
-          assert.deepEqual(m[key], val);
-        });
-        done();
-      });
-    });
-
-    it('destroys persistent messages', function(done) {
-      var messages = new Whisper.MessageCollection();
-      messages.fetch().then(function() {
-        messages.destroyAll().then(function() {
-          var messages = new Whisper.MessageCollection();
-          messages.fetch().then(function() {
-            assert.strictEqual(messages.length, 0);
-            done();
-          });
-        });
-      });
     });
 
     it('should be ordered oldest to newest', function() {

@@ -157,6 +157,17 @@
     "description":
       "Message shown on the loading screen while we are doing application optimizations"
   },
+  "migratingToSQLCipher": {
+    "message": "Optimizing messages... $status$ complete.",
+    "description":
+      "Message shown on the loading screen while we are doing application optimizations",
+    "placeholders": {
+      "status": {
+        "content": "$1",
+        "example": "45/200"
+      }
+    }
+  },
   "chooseDirectory": {
     "message": "Choose folder",
     "description": "Button to allow the user to find a folder on disk"
@@ -416,6 +427,10 @@
   "debugLogExplanation": {
     "message":
       "This log will be posted publicly online for contributors to view. You may examine and edit it before submitting."
+  },
+  "debugLogError": {
+    "message":
+      "Something went wrong with the upload! Please consider manually adding your log to the bug you file."
   },
   "reportIssue": {
     "message": "Report an issue",
@@ -680,19 +695,30 @@
     "description":
       "When rendering an address, used to provide context to a post office box"
   },
+  "downloadAttachment": {
+    "message": "Download Attachment",
+    "description":
+      "Shown in a message's triple-dot menu if there isn't room for a dedicated download button"
+  },
   "replyToMessage": {
     "message": "Reply to Message",
     "description":
       "Shown in triple-dot menu next to message to allow user to start crafting a message with a quotation"
   },
-  "replyingToYourself": {
-    "message": "Replying to Yourself",
-    "description": "Shown in iOS theme when you quote yourself"
-  },
-  "replyingToYou": {
-    "message": "Replying to You",
+  "originalMessageNotFound": {
+    "message": "Original message not found",
     "description":
-      "Shown in iOS theme when someone else quotes a message from you"
+      "Shown in quote if reference message was not found as message was initially downloaded and processed"
+  },
+  "originalMessageNotAvailable": {
+    "message": "Original message no longer available",
+    "description":
+      "Shown in toast if user clicks on quote that references message no longer in database"
+  },
+  "messageFoundButNotLoaded": {
+    "message": "Original message found, but not loaded. Scroll up to load it.",
+    "description":
+      "Shown in toast if user clicks on quote references messages not loaded in view, but in database"
   },
   "you": {
     "message": "You",
@@ -762,7 +788,7 @@
   },
   "deleteWarning": {
     "message":
-      "Are you sure? Clicking 'delete' will permanently remove this message from this device."
+      "Are you sure? Clicking 'delete' will permanently remove this message from this device only."
   },
   "deleteThisMessage": {
     "message": "Delete this message"
@@ -799,7 +825,7 @@
       "This is a menu item for resetting the session, using the imperative case, as in a command."
   },
   "showSafetyNumber": {
-    "message": "Show safety number"
+    "message": "View safety number"
   },
   "viewAllMedia": {
     "message": "View all media",
@@ -1145,6 +1171,17 @@
     "description":
       "Brief timestamp for messages sent about one hour ago. Displayed in the conversation list and message bubble."
   },
+  "hoursAgoShort": {
+    "message": "$hours$ hr",
+    "description":
+      "Even further contracted form of 'X hours ago' which works both for singular and plural, used in the left pane",
+    "placeholders": {
+      "hours": {
+        "content": "$1",
+        "example": "2"
+      }
+    }
+  },
   "hoursAgo": {
     "message": "$hours$ hr ago",
     "description":
@@ -1153,6 +1190,17 @@
       "hours": {
         "content": "$1",
         "example": "2"
+      }
+    }
+  },
+  "minutesAgoShort": {
+    "message": "$minutes$ min",
+    "description":
+      "Even further contracted form of 'X minutes ago' which works both for singular and plural, used in the left pane",
+    "placeholders": {
+      "minutes": {
+        "content": "$1",
+        "example": "10"
       }
     }
   },
@@ -1341,10 +1389,30 @@
     "description":
       "Very short format indicating current timer setting in the conversation header"
   },
+  "disappearingMessagesDisabled": {
+    "message": "Disappearing messages disabled",
+    "description": "Displayed in the left pane when the timer is turned off"
+  },
+  "disabledDisappearingMessages": {
+    "message": "$name$ disabled disappearing messages",
+    "description":
+      "Displayed in the conversation list when the timer is turned off",
+    "placeholders": {
+      "name": {
+        "content": "$1",
+        "example": "John"
+      }
+    }
+  },
+  "youDisabledDisappearingMessages": {
+    "message": "You disabled disappearing messages",
+    "description":
+      "Displayed in the conversation list when the timer is turned off"
+  },
   "timerSetTo": {
     "message": "Timer set to $time$",
     "description":
-      "Displayed in the conversation list when the timer is updated by some automatic action.",
+      "Displayed in the conversation list when the timer is updated by some automatic action, or in the left pane",
     "placeholders": {
       "time": {
         "content": "$1",
@@ -1373,7 +1441,7 @@
     }
   },
   "verifyNewNumber": {
-    "message": "Verify New Number",
+    "message": "Verify Safety Number",
     "description":
       "Label on button included with safety number change notification in the conversation"
   },

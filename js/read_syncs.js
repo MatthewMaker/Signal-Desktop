@@ -1,4 +1,4 @@
-/* global Backbone, Whisper, ConversationController */
+/* global Backbone, Whisper */
 
 /* eslint-disable more/no-then */
 
@@ -14,21 +14,25 @@
         timestamp: message.get('sent_at'),
       });
       if (receipt) {
-        console.log('Found early read sync for message');
+        window.log.info('Found early read sync for message');
         this.remove(receipt);
         return receipt;
       }
 
       return null;
     },
-    onReceipt(receipt) {
-      const messages = new Whisper.MessageCollection();
-      return messages.fetchSentAt(receipt.get('timestamp')).then(() => {
+    async onReceipt(receipt) {
+      try {
+        const messages = await window.Signal.Data.getMessagesBySentAt(
+          receipt.get('timestamp'),
+          {
+            MessageCollection: Whisper.MessageCollection,
+          }
+        );
+
         const message = messages.find(
           item =>
-            item.isIncoming() &&
-            item.isUnread() &&
-            item.get('source') === receipt.get('sender')
+            item.isIncoming() && item.get('source') === receipt.get('sender')
         );
         const notificationForMessage = message
           ? Whisper.Notifications.findWhere({ messageId: message.id })
@@ -41,31 +45,57 @@
         const wasMessageFound = Boolean(message);
         const wasNotificationFound = Boolean(notificationForMessage);
         const wasNotificationRemoved = Boolean(removedNotification);
-        console.log('Receive read sync:', {
+        window.log.info('Receive read sync:', {
           receiptSender,
           receiptTimestamp,
           wasMessageFound,
           wasNotificationFound,
           wasNotificationRemoved,
         });
-        return message
-          ? message.markRead(receipt.get('read_at')).then(() => {
-              // This notification may result in messages older than this one being
-              //   marked read. We want those messages to have the same expire timer
-              //   start time as this one, so we pass the read_at value through.
-              this.notifyConversation(message, receipt.get('read_at'));
-              this.remove(receipt);
-            })
-          : Promise.resolve();
-      });
-    },
-    notifyConversation(message, readAt) {
-      const conversation = ConversationController.get({
-        id: message.get('conversationId'),
-      });
 
-      if (conversation) {
-        conversation.onReadMessage(message, readAt);
+        if (!message) {
+          return;
+        }
+
+        const readAt = receipt.get('read_at');
+
+        // If message is unread, we mark it read. Otherwise, we update the expiration
+        //   timer to the time specified by the read sync if it's earlier than
+        //   the previous read time.
+        if (message.isUnread()) {
+          await message.markRead(readAt);
+
+          // onReadMessage may result in messages older than this one being
+          //   marked read. We want those messages to have the same expire timer
+          //   start time as this one, so we pass the readAt value through.
+          const conversation = message.getConversation();
+          if (conversation) {
+            conversation.onReadMessage(message, readAt);
+          }
+        } else {
+          const now = Date.now();
+          const existingTimestamp = message.get('expirationStartTimestamp');
+          const expirationStartTimestamp = Math.min(
+            now,
+            Math.min(existingTimestamp || now, readAt || now)
+          );
+          message.set({ expirationStartTimestamp });
+
+          const force = true;
+          await message.setToExpire(force);
+
+          const conversation = message.getConversation();
+          if (conversation) {
+            conversation.trigger('expiration-change', message);
+          }
+        }
+
+        this.remove(receipt);
+      } catch (error) {
+        window.log.error(
+          'ReadSyncs.onReceipt error:',
+          error && error.stack ? error.stack : error
+        );
       }
     },
   }))();

@@ -108,9 +108,9 @@ exports._replaceUnicodeOrderOverridesSync = attachment => {
 exports.replaceUnicodeOrderOverrides = async attachment =>
   exports._replaceUnicodeOrderOverridesSync(attachment);
 
-exports.removeSchemaVersion = attachment => {
+exports.removeSchemaVersion = ({ attachment, logger }) => {
   if (!exports.isValid(attachment)) {
-    console.log(
+    logger.error(
       'Attachment.removeSchemaVersion: Invalid input attachment:',
       attachment
     );
@@ -158,26 +158,28 @@ exports.loadData = readAttachmentData => {
 //      deleteData :: (RelativePath -> IO Unit)
 //                    Attachment ->
 //                    IO Unit
-exports.deleteData = deleteAttachmentData => {
-  if (!is.function(deleteAttachmentData)) {
-    throw new TypeError("'deleteAttachmentData' must be a function");
+exports.deleteData = deleteOnDisk => {
+  if (!is.function(deleteOnDisk)) {
+    throw new TypeError('deleteData: deleteOnDisk must be a function');
   }
 
   return async attachment => {
     if (!exports.isValid(attachment)) {
-      throw new TypeError("'attachment' is not valid");
+      throw new TypeError('deleteData: attachment is not valid');
     }
 
-    const hasDataInMemory = exports.hasData(attachment);
-    if (hasDataInMemory) {
-      return;
+    const { path, thumbnail, screenshot } = attachment;
+    if (is.string(path)) {
+      await deleteOnDisk(path);
     }
 
-    if (!is.string(attachment.path)) {
-      throw new TypeError("'attachment.path' is required");
+    if (thumbnail && is.string(thumbnail.path)) {
+      await deleteOnDisk(thumbnail.path);
     }
 
-    await deleteAttachmentData(attachment.path);
+    if (screenshot && is.string(screenshot.path)) {
+      await deleteOnDisk(screenshot.path);
+    }
   };
 };
 
@@ -197,6 +199,7 @@ exports.captureDimensionsAndScreenshot = async (
     getImageDimensions,
     makeImageThumbnail,
     makeVideoScreenshot,
+    logger,
   }
 ) => {
   const { contentType } = attachment;
@@ -212,13 +215,17 @@ exports.captureDimensionsAndScreenshot = async (
 
   if (GoogleChrome.isImageTypeSupported(contentType)) {
     try {
-      const { width, height } = await getImageDimensions(absolutePath);
+      const { width, height } = await getImageDimensions({
+        objectUrl: absolutePath,
+        logger,
+      });
       const thumbnailBuffer = await blobToArrayBuffer(
-        await makeImageThumbnail(
-          THUMBNAIL_SIZE,
-          absolutePath,
-          THUMBNAIL_CONTENT_TYPE
-        )
+        await makeImageThumbnail({
+          size: THUMBNAIL_SIZE,
+          objectUrl: absolutePath,
+          contentType: THUMBNAIL_CONTENT_TYPE,
+          logger,
+        })
       );
 
       const thumbnailPath = await writeNewAttachmentData(thumbnailBuffer);
@@ -234,7 +241,7 @@ exports.captureDimensionsAndScreenshot = async (
         },
       };
     } catch (error) {
-      console.log(
+      logger.error(
         'captureDimensionsAndScreenshot:',
         'error processing image; skipping screenshot generation',
         toLogFormat(error)
@@ -246,21 +253,29 @@ exports.captureDimensionsAndScreenshot = async (
   let screenshotObjectUrl;
   try {
     const screenshotBuffer = await blobToArrayBuffer(
-      await makeVideoScreenshot(absolutePath, THUMBNAIL_CONTENT_TYPE)
+      await makeVideoScreenshot({
+        objectUrl: absolutePath,
+        contentType: THUMBNAIL_CONTENT_TYPE,
+        logger,
+      })
     );
     screenshotObjectUrl = makeObjectUrl(
       screenshotBuffer,
       THUMBNAIL_CONTENT_TYPE
     );
-    const { width, height } = await getImageDimensions(screenshotObjectUrl);
+    const { width, height } = await getImageDimensions({
+      objectUrl: screenshotObjectUrl,
+      logger,
+    });
     const screenshotPath = await writeNewAttachmentData(screenshotBuffer);
 
     const thumbnailBuffer = await blobToArrayBuffer(
-      await makeImageThumbnail(
-        THUMBNAIL_SIZE,
-        screenshotObjectUrl,
-        THUMBNAIL_CONTENT_TYPE
-      )
+      await makeImageThumbnail({
+        size: THUMBNAIL_SIZE,
+        objectUrl: screenshotObjectUrl,
+        contentType: THUMBNAIL_CONTENT_TYPE,
+        logger,
+      })
     );
 
     const thumbnailPath = await writeNewAttachmentData(thumbnailBuffer);
@@ -283,7 +298,7 @@ exports.captureDimensionsAndScreenshot = async (
       height,
     };
   } catch (error) {
-    console.log(
+    logger.error(
       'captureDimensionsAndScreenshot: error processing video; skipping screenshot generation',
       toLogFormat(error)
     );

@@ -1,14 +1,21 @@
+/* eslint-disable no-console */
+
 const path = require('path');
 const url = require('url');
 const os = require('os');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const _ = require('lodash');
 const pify = require('pify');
 const electron = require('electron');
 
-const getRealPath = pify(fs.realpath);
+const packageJson = require('./package.json');
+const GlobalErrors = require('./app/global_errors');
 
+GlobalErrors.addHandler();
+
+const getRealPath = pify(fs.realpath);
 const {
   app,
   BrowserWindow,
@@ -18,23 +25,6 @@ const {
   session,
   shell,
 } = electron;
-
-const packageJson = require('./package.json');
-
-const Attachments = require('./app/attachments');
-const autoUpdate = require('./app/auto_update');
-const createTrayIcon = require('./app/tray_icon');
-const GlobalErrors = require('./js/modules/global_errors');
-const logging = require('./app/logging');
-const windowState = require('./app/window_state');
-const { createTemplate } = require('./app/menu');
-const {
-  installFileHandler,
-  installWebHandler,
-} = require('./app/protocol_filter');
-const { installPermissionsHandler } = require('./app/permissions');
-
-GlobalErrors.addHandler();
 
 const appUserModelId = `org.whispersystems.${packageJson.name}`;
 console.log('Set Windows Application User Model ID (AUMID)', {
@@ -58,14 +48,32 @@ const usingTrayIcon =
 
 const config = require('./app/config');
 
+// Very important to put before the single instance check, since it is based on the
+//   userData directory.
+const userConfig = require('./app/user_config');
+
 const importMode =
   process.argv.some(arg => arg === '--import') || config.get('import');
 
 const development = config.environment === 'development';
 
-// Very important to put before the single instance check, since it is based on the
-//   userData directory.
-const userConfig = require('./app/user_config');
+// We generally want to pull in our own modules after this point, after the user
+//   data directory has been set.
+const attachments = require('./app/attachments');
+const attachmentChannel = require('./app/attachment_channel');
+const autoUpdate = require('./app/auto_update');
+const createTrayIcon = require('./app/tray_icon');
+const ephemeralConfig = require('./app/ephemeral_config');
+const logging = require('./app/logging');
+const sql = require('./app/sql');
+const sqlChannels = require('./app/sql_channel');
+const windowState = require('./app/window_state');
+const { createTemplate } = require('./app/menu');
+const {
+  installFileHandler,
+  installWebHandler,
+} = require('./app/protocol_filter');
+const { installPermissionsHandler } = require('./app/permissions');
 
 function showWindow() {
   if (!mainWindow) {
@@ -108,7 +116,14 @@ if (!process.mas) {
   }
 }
 
-let windowConfig = userConfig.get('window');
+const windowFromUserConfig = userConfig.get('window');
+const windowFromEphemeral = ephemeralConfig.get('window');
+let windowConfig = windowFromEphemeral || windowFromUserConfig;
+if (windowFromUserConfig) {
+  userConfig.set('window', null);
+  ephemeralConfig.set('window', windowConfig);
+}
+
 const loadLocale = require('./app/locale').load;
 
 // Both of these will be set after app fires the 'ready' event
@@ -278,13 +293,12 @@ function createWindow() {
       'Updating BrowserWindow config: %s',
       JSON.stringify(windowConfig)
     );
-    userConfig.set('window', windowConfig);
+    ephemeralConfig.set('window', windowConfig);
   }
 
   const debouncedCaptureStats = _.debounce(captureAndSaveWindowStats, 500);
   mainWindow.on('resize', debouncedCaptureStats);
   mainWindow.on('move', debouncedCaptureStats);
-  mainWindow.on('close', captureAndSaveWindowStats);
 
   mainWindow.on('focus', () => {
     mainWindow.flashFrame(false);
@@ -594,44 +608,64 @@ app.on('ready', async () => {
 
   installPermissionsHandler({ session, userConfig });
 
-  // NOTE: Temporarily allow `then` until we convert the entire file to `async` / `await`:
-  /* eslint-disable more/no-then */
   let loggingSetupError;
-  logging
-    .initialize()
-    .catch(error => {
-      loggingSetupError = error;
-    })
-    .then(async () => {
-      /* eslint-enable more/no-then */
-      logger = logging.getLogger();
-      logger.info('app ready');
+  try {
+    await logging.initialize();
+  } catch (error) {
+    loggingSetupError = error;
+  }
 
-      if (loggingSetupError) {
-        logger.error('Problem setting up logging', loggingSetupError.stack);
-      }
+  logger = logging.getLogger();
+  logger.info('app ready');
 
-      if (!locale) {
-        const appLocale =
-          process.env.NODE_ENV === 'test' ? 'en' : app.getLocale();
-        locale = loadLocale({ appLocale, logger });
-      }
+  if (loggingSetupError) {
+    logger.error('Problem setting up logging', loggingSetupError.stack);
+  }
 
-      console.log('Ensure attachments directory exists');
-      await Attachments.ensureDirectory(userDataPath);
+  if (!locale) {
+    const appLocale = process.env.NODE_ENV === 'test' ? 'en' : app.getLocale();
+    locale = loadLocale({ appLocale, logger });
+  }
 
-      ready = true;
+  let key = userConfig.get('key');
+  if (!key) {
+    console.log(
+      'key/initialize: Generating new encryption key, since we did not find it on disk'
+    );
+    // https://www.zetetic.net/sqlcipher/sqlcipher-api/#key
+    key = crypto.randomBytes(32).toString('hex');
+    userConfig.set('key', key);
+  }
+  await sql.initialize({ configDir: userDataPath, key });
+  await sqlChannels.initialize();
 
-      autoUpdate.initialize(getMainWindow, locale.messages);
-
-      createWindow();
-
-      if (usingTrayIcon) {
-        tray = createTrayIcon(getMainWindow, locale.messages);
-      }
-
-      setupMenu();
+  async function cleanupOrphanedAttachments() {
+    const allAttachments = await attachments.getAllAttachments(userDataPath);
+    const orphanedAttachments = await sql.removeKnownAttachments(
+      allAttachments
+    );
+    await attachments.deleteAll({
+      userDataPath,
+      attachments: orphanedAttachments,
     });
+  }
+
+  await attachmentChannel.initialize({
+    configDir: userDataPath,
+    cleanupOrphanedAttachments,
+  });
+
+  ready = true;
+
+  autoUpdate.initialize(getMainWindow, locale.messages);
+
+  createWindow();
+
+  if (usingTrayIcon) {
+    tray = createTrayIcon(getMainWindow, locale.messages);
+  }
+
+  setupMenu();
 });
 
 function setupMenu(options) {
@@ -719,14 +753,6 @@ ipc.on('draw-attention', () => {
   } else if (process.platform === 'linux') {
     mainWindow.flashFrame(true);
   }
-});
-
-ipc.on('set-media-permissions', (event, enabled) => {
-  userConfig.set('mediaPermissions', enabled);
-});
-ipc.on('get-media-permissions', event => {
-  // eslint-disable-next-line no-param-reassign
-  event.returnValue = userConfig.get('mediaPermissions') || false;
 });
 
 ipc.on('restart', () => {

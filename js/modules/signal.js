@@ -2,6 +2,7 @@
 
 const Backbone = require('../../ts/backbone');
 const Crypto = require('./crypto');
+const Data = require('./data');
 const Database = require('./database');
 const Emoji = require('../../ts/util/emoji');
 const Notifications = require('../../ts/notifications');
@@ -9,6 +10,7 @@ const OS = require('../../ts/OS');
 const Settings = require('./settings');
 const Startup = require('./startup');
 const Util = require('../../ts/util');
+const { migrateToSQL } = require('./migrate_to_sql');
 
 // Components
 const {
@@ -86,6 +88,7 @@ function initializeMigrations({
   Attachments,
   Type,
   VisualType,
+  logger,
 }) {
   if (!Attachments) {
     return null;
@@ -108,21 +111,27 @@ function initializeMigrations({
   const attachmentsPath = getPath(userDataPath);
   const readAttachmentData = createReader(attachmentsPath);
   const loadAttachmentData = Type.loadData(readAttachmentData);
+  const loadQuoteData = MessageType.loadQuoteData(readAttachmentData);
   const getAbsoluteAttachmentPath = createAbsolutePathGetter(attachmentsPath);
+  const deleteOnDisk = Attachments.createDeleter(attachmentsPath);
 
   return {
     attachmentsPath,
-    deleteAttachmentData: Type.deleteData(
-      Attachments.createDeleter(attachmentsPath)
-    ),
+    deleteExternalMessageFiles: MessageType.deleteAllExternalFiles({
+      deleteAttachmentData: Type.deleteData(deleteOnDisk),
+      deleteOnDisk,
+    }),
     getAbsoluteAttachmentPath,
     getPlaceholderMigrations,
     loadAttachmentData,
+    loadQuoteData,
     loadMessage: MessageType.createAttachmentLoader(loadAttachmentData),
     Migrations0DatabaseWithAttachmentData,
     Migrations1DatabaseWithoutAttachmentData,
-    upgradeMessageSchema: message =>
-      MessageType.upgradeSchema(message, {
+    upgradeMessageSchema: (message, options = {}) => {
+      const { maxVersion } = options;
+
+      return MessageType.upgradeSchema(message, {
         writeNewAttachmentData: createWriterForNew(attachmentsPath),
         getRegionCode,
         getAbsoluteAttachmentPath,
@@ -131,15 +140,19 @@ function initializeMigrations({
         getImageDimensions,
         makeImageThumbnail,
         makeVideoScreenshot,
-      }),
-    writeMessageAttachments: MessageType.createAttachmentDataWriter(
-      createWriterForExisting(attachmentsPath)
-    ),
+        logger,
+        maxVersion,
+      });
+    },
+    writeMessageAttachments: MessageType.createAttachmentDataWriter({
+      writeExistingAttachmentData: createWriterForExisting(attachmentsPath),
+      logger,
+    }),
   };
 }
 
 exports.setup = (options = {}) => {
-  const { Attachments, userDataPath, getRegionCode } = options;
+  const { Attachments, userDataPath, getRegionCode, logger } = options;
 
   const Migrations = initializeMigrations({
     userDataPath,
@@ -147,6 +160,7 @@ exports.setup = (options = {}) => {
     Attachments,
     Type: AttachmentType,
     VisualType: VisualAttachment,
+    logger,
   });
 
   const Components = {
@@ -199,6 +213,7 @@ exports.setup = (options = {}) => {
     Backbone,
     Components,
     Crypto,
+    Data,
     Database,
     Emoji,
     Migrations,
@@ -210,5 +225,6 @@ exports.setup = (options = {}) => {
     Util,
     Views,
     Workflow,
+    migrateToSQL,
   };
 };

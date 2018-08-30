@@ -8,7 +8,7 @@ const asar = require('asar');
 const fs = require('fs');
 const assert = require('assert');
 
-/* eslint-disable more/no-then */
+/* eslint-disable more/no-then, no-console  */
 
 module.exports = grunt => {
   const bower = grunt.file.readJSON('bower.json');
@@ -32,6 +32,14 @@ module.exports = grunt => {
       components: {
         src: components,
         dest: 'js/components.js',
+      },
+      util_worker: {
+        src: [
+          'components/bytebuffer/dist/ByteBufferAB.js',
+          'components/long/dist/Long.js',
+          'js/util_worker_tasks.js',
+        ],
+        dest: 'js/util_worker.js',
       },
       libtextsecurecomponents: {
         src: libtextsecurecomponents,

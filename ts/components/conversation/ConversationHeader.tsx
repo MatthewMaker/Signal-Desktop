@@ -200,11 +200,11 @@ export class ConversationHeader extends React.Component<Props> {
       timerOptions,
     } = this.props;
 
-    const title = i18n('disappearingMessages') as any;
+    const disappearingTitle = i18n('disappearingMessages') as any;
 
     return (
       <ContextMenu id={triggerId}>
-        <SubMenu title={title}>
+        <SubMenu title={disappearingTitle}>
           {(timerOptions || []).map(item => (
             <MenuItem
               key={item.value}
@@ -242,8 +242,12 @@ export class ConversationHeader extends React.Component<Props> {
     return (
       <div className="module-conversation-header">
         {this.renderBackButton()}
-        {this.renderAvatar()}
-        {this.renderTitle()}
+        <div className="module-conversation-header__title-container">
+          <div className="module-conversation-header__title-flex">
+            {this.renderAvatar()}
+            {this.renderTitle()}
+          </div>
+        </div>
         {this.renderExpirationLength()}
         {this.renderGear(id)}
         {this.renderMenu(id)}
